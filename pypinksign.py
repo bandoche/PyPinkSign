@@ -1,13 +1,14 @@
 # coding=utf-8
-import getpass
 import hashlib
 import os
 import random
 from os.path import expanduser
+from sys import platform as _platform
+
 
 from Crypto.PublicKey import RSA
-
-from read_cert import KoCertificate, select_cert, bit2string
+from bitarray import bitarray
+from PBKDF import PBKDF1
 from pkcs1 import emsa_pkcs1_v15
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
@@ -18,20 +19,207 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
-"""
-TODO:
-- native enveloping code (not hard-wired function)
-"""
+id_seed_cbc = (1, 2, 410, 200004, 1, 4)
+id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
+
+
+# class
+class PinkSign:
+    def __init__(self, pubkey_path=None, prikey_path=None, prikey_password=None):
+        '''You can init like
+        p = PinkSign()
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        You can get help with choose_cert() function.
+        '''
+        self.pubkey_path = pubkey_path
+        self.prikey_path = prikey_path
+        self.prikey_password = prikey_password
+        self.pub_cert = None
+        self.prikey = None
+        self.pubkey = None
+        self.rand_num = None
+        if pubkey_path is not None:
+            self.load_pubkey()
+        if prikey_path is not None and prikey_password is not None:
+            self.load_prikey()
+        pass
+
+    def load_pubkey(self, pubkey_path=None):
+        '''load public key file
+
+        p = PinkSign()
+        p.load_pubkey('/my/cert/signCert.der')
+
+        '''
+        assert self.pubkey_path is not None or pubkey_path is not None, "pubkey_path is not defined."
+        if pubkey_path is not None:
+            self.pubkey_path = pubkey_path
+        d = open(self.pubkey_path, 'rb').read()
+        self.pub_cert = der_decoder.decode(d)[0]
+        # (n, e)
+        self.pubkey = RSA.construct((long(get_pubkey_from_pub(self.pub_cert)), long(get_pub_e_from_pub(self.pub_cert))))
+        pass
+
+    def load_prikey(self, prikey_path=None, prikey_password=None):
+        '''load public key file
+
+        p = PinkSign(pubkey_path='/my/cert/signCert.der')
+        p.load_prikey('/my/cert/signPri.key', prikey_password='Y0u-m@y-n0t-p@ss')
+
+        '''
+        assert self.pubkey is not None, "pubkey should be loaded first."
+        assert self.prikey_path is not None or prikey_path is not None, "prikey_path is not defined."
+        assert self.prikey_password is not None or prikey_password is not None, "prikey_password is not defined."
+        if prikey_path is not None:
+            self.prikey_path = prikey_path
+        if prikey_password is not None:
+            self.prikey_password = prikey_password
+
+        d = open(self.prikey_path, 'rb').read()
+        der = der_decoder.decode(d)[0]
+
+        # check if correct K-PKI prikey file
+        algorithm_type = der[0][0].asTuple()
+
+        assert algorithm_type in (id_seed_cbc_with_sha1, id_seed_cbc), "prikey is not correct K-PKI private key file"
+
+        salt = der[0][1][0].asOctets()  # salt for pbkdf#5
+        iter_cnt = int(der[0][1][1])  # usually 2048
+        cipher_key = der[1].asOctets()  # encryped private key
+        dk = PBKDF1(prikey_password, salt, iter_cnt, 20)
+        k = dk[:16]
+        div = hashlib.sha1(dk[16:20]).digest()
+
+        # IV for SEED-CBC has dependency on Algorithm type (Old-style K-PKI or Renewal)
+        if algorithm_type == id_seed_cbc_with_sha1:
+            iv = div[:16]
+        else:
+            iv = "123456789012345"
+
+        prikey_data = seed_cbc_128_decrypt(k, cipher_key, iv)
+        der_pri = der_decoder.decode(prikey_data)
+        der_pri2 = der_decoder.decode(der_pri[0][2])
+
+        # (n, e, d, p, q)
+        rsa_keys = (long(der_pri2[0][1]), long(der_pri2[0][2]), long(der_pri2[0][3]), long(der_pri2[0][4]), long(der_pri2[0][5]))
+        self.prikey = RSA.construct(rsa_keys)
+        self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
+        pass
+
+    def dn(self):
+        '''get dn value
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        print p.dn()  # "홍길순()0010023400506789012345"
+        '''
+        assert self.pubkey is not None, "Public key should be loaded for fetch DN"
+        return self.pub_cert[0][5][4][0][1].asOctets()
+
+    def issuer(self):
+        '''get issuer value
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        print p.dn()  # "WOORI"
+        '''
+        assert self.pubkey is not None, "Public key should be loaded for fetch issuer"
+        return str(self.pub_cert[0][5][3][0][1].asOctets())
+
+    def valid_date(self):
+        '''get valid date range
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        print p.valid_date()  # ('2015-01-01 15:00:00', '2016-01-01 14:59:59')
+        '''
+        assert self.pubkey is not None, "Public key should be loaded for fetch valid date"
+        s = self.pub_cert[0][4][0].asOctets()
+        valid_from = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
+
+        s = self.pub_cert[0][4][1].asOctets()
+        valid_until = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
+        return (valid_from, valid_until)
+
+    def sign(self, msg, algorithm=hashlib.sha256, length=256):
+        '''signing with private key - pkcs1 encode and decrypt
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        s = p.sign('my message')  # '\x00\x01\x02...'
+        '''
+        assert self.prikey is not None, "Priavte key should be loaded before signing"
+        hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
+        return self.decrypt(hashed)
+
+    def verify(self, signature, msg, algorithm=hashlib.sha256, length=256):
+        '''verify with public key - encrypt and decode pkcs1 with hashed msg
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        s = p.sign('my message')  # '\x00\x01\x02...'
+        v = p.verify(s, 'my message')  # True
+        '''
+        assert self.pubkey is not None, "Public key should be loaded before sign verification"
+        hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
+        return hashed == "\x00" * (len(hashed) - len(self.encrypt(signature))) + self.encrypt(signature)
+
+    def decrypt(self, msg):
+        '''decrypt with private key - also used when signing.
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
+        '''
+        assert self.prikey is not None, "Priavte key should be loaded before decryption"
+        return self.prikey.decrypt(msg)
+
+    def encrypt(self, msg):
+        '''encrypt with public key - also used when verify sign
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        encrypted = p.encrypt('my message')  # '\x0a\x0b\x0c...'
+        '''
+        assert self.pubkey is not None, "Public key should be loaded before encryption"
+        return self.pubkey.encrypt(msg, None)[0]
 
 
 # utils
+def get_npki_path():
+    '''Return path for npki, depends on platform.
+    This function can't manage certificates in poratble storage.
+    Path for certifiacte is defined at http://www.rootca.or.kr/kcac/down/TechSpec/6.1-KCAC.TS.UI.pdf
+    '''
+    if _platform == "linux" or _platform == "linux2":
+        # linux
+        path = expanduser("~/NPKI/")
+    elif _platform == "darwin":
+        # OS X
+        suspect = ["~/Documents/NPKI/", "~/NPKI/", "~/Library/Preferences/NPKI/"]
+        for p in suspect:
+            path = expanduser("~/Documents/NPKI/")
+            if os.path.isdir(path):
+                return path
+        raise "can't find certificate forder"
+
+    elif _platform == "win32":
+        # Windows Vista or above. Sorry for XP.
+        suspect = ["C:/Program Files/NPKI/", "~/AppData/LocalLow/NPKI/"]
+        for p in suspect:
+            path = expanduser("~/Documents/NPKI/")
+            if os.path.isdir(path):
+                return path
+        raise "can't find certificate forder"
+    else:
+        # default, but not expected to use this code.
+        path = expanduser("~/NPKI/")
+    return path
+
+
 def url_encode(str):
     '''escape char to url encoding'''
     return str.replace(' ', '%20')
 
 
 def paramize(param):
-    '''make dict to param for get'''
+    '''make dict to param for get
+    TODO: use urllib or else
+    '''
     params = []
     for k in param:
         params.append("%s=%s" % (url_encode(k), url_encode(param[k])))
@@ -39,41 +227,33 @@ def paramize(param):
     return "&".join(params)
 
 
-def select_cert_with_owner(cert_owner=None):
-    '''updated select cert code from @twkang gist (https://gist.github.com/twkang/f5acf360c67ea0bf3f55)'''
+def choose_cert(basepath=None, dn=None, pw=None):
     cert_list = []
-
-    def adddir(a, d, f):
-        l = os.path.split(d)[1]
-        if l[:3] == "cn=":
-            cert_list.append(d)
-
-    def _df(d):
-        return "20" + d[:2] + "/" + d[2:4] + "/" + d[4:6] + " " + \
-               d[6:8] + ":" + d[8:10] + ":" + d[10:12]
-
-    npki_path = expanduser("~/Documents/NPKI/")
-    os.path.walk(npki_path, adddir, None)
-    i = 1
-
-    if cert_owner is not None:
-        for p in cert_list:
-            cert = KoCertificate(p)
-            if cert.owner.find(cert_owner) > 0:
-                return p
-        raise Exception
-        pass
+    if basepath is not None:
+        path = basepath
     else:
-        for p in cert_list:
-            cert = KoCertificate(p)
-            print "%2d: %s (valid: %s ~ %s)" % \
-                (i, cert.owner, _df(cert.valid_date[0]), _df(cert.valid_date[1]))
-            i += 1
+        path = get_npki_path()
 
-        print
-        sel = raw_input("Select Certificate: ")
-        return cert_list[int(sel) - 1]
-        pass
+    for root, dirs, files in os.walk(path):
+        if root[-5:] == "/USER":
+            for cert_dir in dirs:
+                if cert_dir[:3] == "cn=":
+                    cert_path = "%s/%s" % (root, cert_dir)
+                    cert = PinkSign(pubkey_path="%s/signCert.der" % cert_path)
+                    cert.prikey_path = "%s/signPri.key" % cert_path
+                    if dn is not None:
+                        if cert.dn().find(dn) > 0:
+                            if pw is not None:
+                                cert.load_prikey(prikey_path="%s/signPri.key" % cert_path, prikey_password=pw)
+                            return cert
+                    cert_list.append(cert)
+    i = 1
+    for cert in cert_list:
+        (dn, (valid_from, valid_until), issuer) = (cert.dn(), cert.valid_date(), cert.issuer())
+        print "[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer)
+        i += 1
+    i = int(raw_input("Choose your certifiacte: "))
+    return cert_list[i - 1]
 
 
 def pubkey_encrypt(server_key, plaintext):
@@ -117,34 +297,39 @@ def sign_msg(cert, msg, algorithm=hashlib.sha256, length=256):
     return pri_key.decrypt(hashed)
 
 
+def get_pubkey_from_pub(pubkey):
+    '''general function - extract public key from certificate object'''
+    pub_cert = pubkey[0][6][1]
+    pub_der = der_decoder.decode(bit2string(pub_cert))
+    return int(pub_der[0][0])
+
+
+def get_pub_e_from_pub(pubkey):
+    '''general function - extract exponent of public key from certificate object'''
+    pub_cert = pubkey[0][6][1]
+    pub_der = der_decoder.decode(bit2string(pub_cert))
+    return int(pub_der[0][1])
+
+
 def get_pubkey_from_cert(cert_msg):
-    '''general function - extract public key from certificate'''
+    '''general function - extract public key from certificate binary'''
     if cert_msg[:2] == "MI":
         # feels like base64
         cert = cert_msg.decode('base64')
 
     der, _ = der_decoder.decode(cert)
-    pub_cert = der[0][6][1]
-    pub_der = der_decoder.decode(bit2string(pub_cert))
-    return int(pub_der[0][0])
-
-
-def get_cert(owner_name, password):
-    '''wrap select_cert function'''
-    if password is None:
-        password = getpass.getpass("Password: ")
-
-    if owner_name is None:
-        cert = KoCertificate(select_cert(), password)
-    else:
-        cert = KoCertificate(select_cert_with_owner(owner_name), password)
-    return cert
+    return get_pubkey_from_pub(der)
 
 
 def get_signed_timestamp(paramized_timestamp_str, cert):
     '''get stringized parameter and sign with certification'''
     s = sign_msg(cert, paramized_timestamp_str, hashlib.sha256, 256)
     return s
+
+
+def bit2string(bit):
+    '''convert bit-string asn.1 object to string'''
+    return bitarray(bit.prettyPrint()[2:-3]).tobytes()
 
 
 def envelop_with_sign_msg(pub_cert, msg, signed):
