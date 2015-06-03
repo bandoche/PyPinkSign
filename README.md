@@ -19,6 +19,7 @@ import pypinksign
 p = pypinksign.choose_cert(dn="홍길순", pw="i-am-h0ng")
 sign = p.sign('1') 
 verify = p.verify(sign. '1')  # True
+envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 ```
 
 
