@@ -178,6 +178,42 @@ class PinkSign:
         assert self.pubkey is not None, "Public key should be loaded before encryption"
         return self.pubkey.encrypt(msg, None)[0]
 
+    def envelop_with_sign_msg(self, msg):
+        '''WIP: envelop with certificate
+        pub_cert: binary data from file
+        pri_cert: so we called KoCertificate
+        '''
+
+        signed = self.sign(msg)
+
+        owner_cert_pub = self.pub_cert
+
+        # signedData (PKCS #7)
+        oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
+        oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
+        oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
+        oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
+
+        der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
+
+        data = Sequence()
+        data = data.setComponentByPosition(0, Integer(1))
+        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
+        data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.encode('hex')))))
+        data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
+
+        data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
+        data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
+        data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
+        data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
+        data4004 = OctetString(hexValue=signed.encode('hex'))
+
+        data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
+
+        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+
+        return der_encoder.encode(der)
+
 
 # utils
 def get_npki_path():
@@ -321,47 +357,6 @@ def get_pubkey_from_cert(cert_msg):
     return get_pubkey_from_pub(der)
 
 
-def get_signed_timestamp(paramized_timestamp_str, cert):
-    '''get stringized parameter and sign with certification'''
-    s = sign_msg(cert, paramized_timestamp_str, hashlib.sha256, 256)
-    return s
-
-
 def bit2string(bit):
     '''convert bit-string asn.1 object to string'''
     return bitarray(bit.prettyPrint()[2:-3]).tobytes()
-
-
-def envelop_with_sign_msg(pub_cert, msg, signed):
-    '''WIP: envelop with certificate
-    pub_cert: binary data from file
-    pri_cert: so we called KoCertificate
-    '''
-
-    owner_cert_pub = der_decoder.decode(pub_cert)
-
-    # signedData (PKCS #7)
-    oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
-    oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-    oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
-    oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-
-    der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
-
-    data = Sequence()
-    data = data.setComponentByPosition(0, Integer(1))
-    data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
-    data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.encode('hex')))))
-    data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub[0]))
-
-    data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][0][3])
-    data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][0][1])
-    data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
-    data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
-    data4004 = OctetString(hexValue=signed.encode('hex'))
-
-    data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
-
-    der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-
-    return der_encoder.encode(der)
