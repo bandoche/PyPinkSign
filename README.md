@@ -13,6 +13,9 @@ verify = p.verify(sign. '1')  # True
 
 ```python
 import pypinksign
+
+# choose_cert function automatically fetch path for certificates
+# and load certificate which match DN and passpharase for Private Key
 p = pypinksign.choose_cert(dn="홍길순", pw="i-am-h0ng")
 sign = p.sign('1') 
 verify = p.verify(sign. '1')  # True
