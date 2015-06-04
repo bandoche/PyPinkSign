@@ -8,7 +8,7 @@ p = pypinksign.PinkSign()
 p.load_pubkey(pubkey_path="/path/signCert.der")
 p.load_prikey(prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
 sign = p.sign('1') 
-verify = p.verify(sign. '1')  # True
+verify = p.verify(sign, '1')  # True
 ```
 
 ```python
@@ -18,7 +18,7 @@ import pypinksign
 # and load certificate which match DN and passpharase for Private Key
 p = pypinksign.choose_cert(dn="홍길순", pw="i-am-h0ng")
 sign = p.sign('1') 
-verify = p.verify(sign. '1')  # True
+verify = p.verify(sign, '1')  # True
 envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 ```
 
