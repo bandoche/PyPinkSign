@@ -25,11 +25,12 @@ id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
 
 # class
 class PinkSign:
-    def __init__(self, pubkey_path=None, prikey_path=None, prikey_password=None):
+    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_password=None):
         '''You can init like
         p = PinkSign()
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        p = PinkSign(pubkey_data="0\x82...")
         You can get help with choose_cert() function.
         '''
         self.pubkey_path = pubkey_path
@@ -41,21 +42,29 @@ class PinkSign:
         self.rand_num = None
         if pubkey_path is not None:
             self.load_pubkey()
+        elif pubkey_data is not None:
+            self.load_pubkey(pubkey_data=pubkey_data)
         if prikey_path is not None and prikey_password is not None:
             self.load_prikey()
         pass
 
-    def load_pubkey(self, pubkey_path=None):
+    def load_pubkey(self, pubkey_path=None, pubkey_data=None):
         '''load public key file
 
         p = PinkSign()
         p.load_pubkey('/my/cert/signCert.der')
+        p.load_pubkey(pubkey_data="0\x82...")
 
         '''
-        assert self.pubkey_path is not None or pubkey_path is not None, "pubkey_path is not defined."
-        if pubkey_path is not None:
-            self.pubkey_path = pubkey_path
-        d = open(self.pubkey_path, 'rb').read()
+        if not any([self.pubkey_path, pubkey_path, pubkey_data]):
+            raise ValueError("Neither pubkey_path nor pubkey_data is exist.")
+
+        if pubkey_data is not None:
+            d = pubkey_data
+        else:
+            if pubkey_path is not None:
+                self.pubkey_path = pubkey_path
+            d = open(self.pubkey_path, 'rb').read()
         self.pub_cert = der_decoder.decode(d)[0]
         # (n, e)
         self.pubkey = RSA.construct((long(get_pubkey_from_pub(self.pub_cert)), long(get_pub_e_from_pub(self.pub_cert))))
@@ -68,9 +77,14 @@ class PinkSign:
         p.load_prikey('/my/cert/signPri.key', prikey_password='Y0u-m@y-n0t-p@ss')
 
         '''
-        assert self.pubkey is not None, "pubkey should be loaded first."
-        assert self.prikey_path is not None or prikey_path is not None, "prikey_path is not defined."
-        assert self.prikey_password is not None or prikey_password is not None, "prikey_password is not defined."
+
+        if self.pubkey is None:
+            raise ValueError("pubkey should be loaded first.")
+        if not any([self.prikey_path, prikey_path]):
+            raise ValueError("prikey_path is not defined.")
+        if not any([self.prikey_password, prikey_password]):
+            raise ValueError("prikey_password is not defined.")
+
         if prikey_path is not None:
             self.prikey_path = prikey_path
         if prikey_password is not None:
@@ -82,7 +96,8 @@ class PinkSign:
         # check if correct K-PKI prikey file
         algorithm_type = der[0][0].asTuple()
 
-        assert algorithm_type in (id_seed_cbc_with_sha1, id_seed_cbc), "prikey is not correct K-PKI private key file"
+        if algorithm_type not in (id_seed_cbc_with_sha1, id_seed_cbc):
+            raise ValueError("prikey is not correct K-PKI private key file")
 
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
         iter_cnt = int(der[0][1][1])  # usually 2048
@@ -113,7 +128,8 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         print p.dn()  # "홍길순()0010023400506789012345"
         '''
-        assert self.pubkey is not None, "Public key should be loaded for fetch DN"
+        if self.pubkey is None:
+            raise ValueError("Public key should be loaded for fetch DN.")
         return self.pub_cert[0][5][4][0][1].asOctets()
 
     def issuer(self):
@@ -122,7 +138,8 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         print p.dn()  # "WOORI"
         '''
-        assert self.pubkey is not None, "Public key should be loaded for fetch issuer"
+        if self.pubkey is None:
+            raise ValueError("Public key should be loaded for fetch issuer.")
         return str(self.pub_cert[0][5][3][0][1].asOctets())
 
     def valid_date(self):
@@ -131,7 +148,9 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         print p.valid_date()  # ('2015-01-01 15:00:00', '2016-01-01 14:59:59')
         '''
-        assert self.pubkey is not None, "Public key should be loaded for fetch valid date"
+        if self.pubkey is None:
+            raise ValueError("Public key should be loaded for fetch valid date.")
+
         s = self.pub_cert[0][4][0].asOctets()
         valid_from = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
 
@@ -145,7 +164,8 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         s = p.sign('my message')  # '\x00\x01\x02...'
         '''
-        assert self.prikey is not None, "Priavte key should be loaded before signing"
+        if self.prikey is None:
+            raise ValueError("Priavte key is required for signing.")
         hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
         return self.decrypt(hashed)
 
@@ -156,7 +176,8 @@ class PinkSign:
         s = p.sign('my message')  # '\x00\x01\x02...'
         v = p.verify(s, 'my message')  # True
         '''
-        assert self.pubkey is not None, "Public key should be loaded before sign verification"
+        if self.pubkey is None:
+            raise ValueError("Public key is required for verification.")
         hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
         return hashed == "\x00" * (len(hashed) - len(self.encrypt(signature))) + self.encrypt(signature)
 
@@ -166,7 +187,8 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
         '''
-        assert self.prikey is not None, "Priavte key should be loaded before decryption"
+        if self.prikey is None:
+            raise ValueError("Priavte key is required for decryption.")
         return self.prikey.decrypt(msg)
 
     def encrypt(self, msg):
@@ -175,13 +197,12 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         encrypted = p.encrypt('my message')  # '\x0a\x0b\x0c...'
         '''
-        assert self.pubkey is not None, "Public key should be loaded before encryption"
+        if self.pubkey is None:
+            raise ValueError("Public key is required for encryption.")
         return self.pubkey.encrypt(msg, None)[0]
 
     def envelop_with_sign_msg(self, msg):
         '''WIP: envelop with certificate
-        pub_cert: binary data from file
-        pri_cert: so we called KoCertificate
         '''
 
         signed = self.sign(msg)
@@ -345,16 +366,6 @@ def get_pub_e_from_pub(pubkey):
     pub_cert = pubkey[0][6][1]
     pub_der = der_decoder.decode(bit2string(pub_cert))
     return int(pub_der[0][1])
-
-
-def get_pubkey_from_cert(cert_msg):
-    '''general function - extract public key from certificate binary'''
-    if cert_msg[:2] == "MI":
-        # feels like base64
-        cert = cert_msg.decode('base64')
-
-    der, _ = der_decoder.decode(cert)
-    return get_pubkey_from_pub(der)
 
 
 def bit2string(bit):
