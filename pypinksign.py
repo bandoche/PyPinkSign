@@ -21,6 +21,7 @@ from cryptography.hazmat.backends import default_backend
 
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
 id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
+id_pkcs7_enveloped_data = (1, 2, 840, 113549, 1, 7, 3)
 
 
 # class
@@ -201,8 +202,8 @@ class PinkSign:
             raise ValueError("Public key is required for encryption.")
         return self.pubkey.encrypt(msg, None)[0]
 
-    def envelop_with_sign_msg(self, msg):
-        '''WIP: envelop with certificate
+    def pkcs7_sign_msg(self, msg):
+        '''WIP: PKCS#7 sign with certificate
         '''
 
         signed = self.sign(msg)
@@ -233,6 +234,30 @@ class PinkSign:
 
         der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
 
+        return der_encoder.encode(der)
+
+    def pkcs7_enveloped_msg(self, msg, data, iv="0123456789012345"):
+        '''WIP: PKCS#7 envelop msg, data with cert'''
+        oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
+        oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
+        oi_seed_cbc = ObjectIdentifier(id_seed_cbc)
+
+        der = Sequence().setComponentByPosition(0, ObjectIdentifier(id_pkcs7_enveloped_data))
+
+        data_set = Sequence().setComponentByPosition(0, Integer(0))
+        data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
+        data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
+        data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.encode('hex')))
+
+        data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
+        data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.encode('hex'))))
+        data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.encode('hex')).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
+
+        data = Sequence().setComponentByPosition(0, Integer(0))
+        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))
+        data = data.setComponentByPosition(2, data_seq)
+
+        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
         return der_encoder.encode(der)
 
 
@@ -313,12 +338,6 @@ def choose_cert(basepath=None, dn=None, pw=None):
     return cert_list[i - 1]
 
 
-def pubkey_encrypt(server_key, plaintext):
-    '''general function - encrypt plaintext with public key from server'''
-    encrypted_key = server_key.encrypt(plaintext, None)[0]
-    return encrypted_key
-
-
 def seed_cbc_128_encrypt(key, plaintext, iv='0123456789012345'):
     '''general function - encrypt plaintext with seed-cbc-128(key, iv)'''
     backend = default_backend()
@@ -344,14 +363,6 @@ def seed_cbc_128_decrypt(key, ciphertext, iv='0123456789012345'):
 def seed_generator(size):
     '''general function - get random size-bytes string for seed'''
     return ''.join(chr(random.choice(range(255)) + 1) for _ in range(size))
-
-
-def sign_msg(cert, msg, algorithm=hashlib.sha256, length=256):
-    '''general function - return signed data(hashed/pkcs1/decrypt), part of SignData function'''
-    hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
-    aa = cert.pri_key.private_numbers()
-    pri_key = RSA.construct((cert.pub_key.public_numbers().n, long(cert.pub_key.public_numbers().e), aa.d, aa.p, aa.q))
-    return pri_key.decrypt(hashed)
 
 
 def get_pubkey_from_pub(pubkey):
