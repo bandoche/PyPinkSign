@@ -1,188 +1,90 @@
-`skeleton` is similar to the template part of PasteScript_ but 
-without any dependencies; it is also compatible with Python 3.
+PyPinkSign
+==========
 
-Requirements
-============
+Small python code for K-PKI certificates. 공인인증서를 다루는 파이선
+코드입니다.
 
-- Python 2.6 or 3.1
+Support method
+--------------
 
-It currently only has been tested with Python 2.6 and 3.1 on Mac OSX.
-
-
-Installation
-============
-
-The easiest way to get skeleton is if you have setuptools / distribute_ or pip_ installed::
-
-	easy_install skeleton
-
-or::
-
-	pip install skeleton
-
-The current development version can be found at 
-http://github.com/dinoboff/skeleton/tarball/master.
-
+-  Load personal purpose of
+   `NPKI <http://www.nsic.go.kr/ndsi/help/pki.do?menuId=MN050503>`__
+   a.k.a
+   "`공인인증서 <http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp>`__\ "
+-  Encrypt, Decrypt, Sign, Verify (part of Public-key cryptography)
+-  PKCS#7 sign, envelop
 
 Usage example
-=============
-
-Let's create a basic module template; one with a `setup.py`, a `README` and the 
-module files.
-
-First, create the skeleton script layout::
-
-	mkmodule.py
-	basic-module/README
-	basic-module/setup.py_tmpl
-	basic-module/{module_name}.py
-
-`mkmodule.py`
 -------------
 
-`mkmodule.py` is the script that create new modules::
+.. code:: python
 
+    import pypinksign
+    p = pypinksign.PinkSign()
+    p.load_pubkey(pubkey_path="/path/signCert.der")
+    p.load_prikey(prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
+    sign = p.sign('1') 
+    verify = p.verify(sign, '1')  # True
 
-	#!/usr/bin/env python
-	"""
-	Basic script to create an empty python package containing one module
-	"""
-	from skeleton import Skeleton, Var
+.. code:: python
 
+    import pypinksign
 
-	class BasicModule(Skeleton):
-	    """
-	    Create an empty module with its etup script and a README file.
-	    """
-	    src = 'basic-module'
-	    variables = [
-	        Var('module_name'),
-	        Var('author'),
-	        Var('author_email'),
-	        ]
+    # choose_cert function automatically fetch path for certificates
+    # and load certificate which match DN and passpharase for Private Key
+    p = pypinksign.choose_cert(dn="홍길순", pw="i-am-h0ng")
+    sign = p.sign('1') 
+    verify = p.verify(sign, '1')  # True
+    envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 
+Requirement & Dependency
+------------------------
 
-	def main():
-	    """Basic command line bootstrap for the BasicModule Skeleton"""
-	    BasicModule.cmd()
+-  Python 2.7 (Probably works with python 3 and above, but not tested)
+-  `PyCrypto <https://pypi.python.org/pypi/pycrypto>`__ for
+   Crypto.PublicKey
+-  `python-pkcs1 <https://github.com/bdauvergne/python-pkcs1>`__ for
+   pkcs1
+-  `PyASN1 <http://pyasn1.sourceforge.net>`__ for pyasn1
+-  `cryptography <https://cryptography.io/en/latest/>`__ for
+   cryptography.hazmat
+-  `bitarray <https://pypi.python.org/pypi/bitarray/>`__ 0.8.1 for
+   bitarray.bitarray
 
-	if __name__ == '__main__':
-	    main()
+Installation
+------------
 
+The easiest way to get skeleton is if you have setuptools / distribute
+*or* pip installed
 
-The `src` attribute sets the relative path to the skeleton directory where the 
-script will find the files and directories to create.
+::
 
-The `variables` attribute list the variables the templates will require.
-The variables with a default can be left blank by the user.
+    easy_install pypinksign
 
-`Skeleton.cmd()` is a convenient method to set an optparser and 
-the logging basic config, and to apply the skeleton::
+or
 
+::
 
-	Usage: mkmodule.py [options] dst_dir
+    pip install pypinksign
 
-	Options:
-	  -h, --help            show this help message and exit
-	  -q, --quiet           
-	  -v, --verbose         
-	  -d, --debug           
-	  --module-name=NAME    Module Name
-	  --author=AUTHOR       Author
-	  --author-email=EMAIL  Author Email
+The current development version can be found at
+`http://github.com/bandoche/pypinksign/tarball/master <>`__
 
+History
+-------
 
-If you needed to run a `Skeleton` yourself, you would use the 
-constructor, the `update` or `__setitem__` methods to set the variables
-(`Skeleton` is a `dict` subclass), and the `write(dst_dir)` or `run(dst_dir)`
-methods to apply the skeleton. `write()` will raise a `KeyException` if a 
-variable is not set; `run()` will prompt the user for the missing variables
+Ver. 0.1.1
+~~~~~~~~~~
 
+-  Add README.rst for PyPI
 
-`basic-module/README`
----------------------
+Ver. 0.1
+~~~~~~~~
 
-`README` a is static file that will simply be copied::
+-  First release.
 
-	TODO: write the description of this module.
-	
-`basic-module/setup.py_tmpl`
-----------------------------
+See also
+--------
 
-`setup.py_tmpl` is a template (it ends with the _tmpl suffix) that will be used
-to create a `setup.py` file::
-
-	#!/usr/bin/env python
-
-	from distutils.core import setup
-
-
-	PROJECT = {module_name!r}
-	VERSION = '0.1'
-	AUTHOR = {author!r}
-	AUTHOR_EMAIL = {author_email!r}
-	DESC = "A short description..."
-
-	setup(
-	    name=PROJECT,
-	    version=VERSION,
-	    description=DESC,
-	    long_description=open('README.rst').read(),
-	    author=AUTHOR,
-	    author_email=AUTHOR_EMAIL,
-	    py_module=[{module_name!r},],
-	)
-
-By default, `Skeleton` uses python 2.6+ `string formatting`_.
-
-`basic-module/{module_name}.py`
--------------------------------
-
-`{module_name}.py` is the module file for which the name will be set dynamically
-at run time.
-
-.. NOTE::
-	All file names are formatted using `Skeleton.template_formatter` method.
-	Watch out for special characters (with the default formatter,
-	use `{{` to render `{` and `}}` for `}` - unless you want to render
-	a variable).
-
-Extra
-=====
-
-`skeleton` includes a skeleton for a basic package layout, you can 
-run it with::
-
-	python -m skeleton.examples.basicpackage <dst_dir>
-
-or with `virtualenvwrapper.project`. Install it::
-
-	pip install skeleton[virtualenv-templates]
-
-Configure virtualenvwrapper_ and virtualenwrapper.project_; then,
-create a new project::
-
-	mkproject -t package <project name>
-
-
-Todo:
-=====
-
-- Write documentation.
-- add more examples.
-
-
-Development
-===========
-
-Report any issues and fork `squeleton` at
-http://github.com/dinoboff/skeleton/ .
-
-
-
-.. _PasteScript: http://pythonpaste.org/script/
-.. _pip: http://pip.openplans.org/
-.. _distribute: http://packages.python.org/distribute/
-.. _string formatting: http://docs.python.org/library/functions.html#format
-.. _virtualenwrapper.project: http://www.doughellmann.com/projects/virtualenvwrapper.project/
-.. _virtualenvwrapper: http://www.doughellmann.com/projects/virtualenvwrapper/
+-  `rootca.or.kr <http://rootca.or.kr/kor/standard/standard01A.jsp>`__ -
+   Technical Specification for K-PKI System

@@ -1,11 +1,7 @@
 #!/usr/bin/env python
-
-# Bootstrap installation of Distribute
-import distribute_setup
-distribute_setup.use_setuptools()
+# -*- coding: utf-8 -*-
 
 import sys
-
 from setuptools import setup
 
 
@@ -21,13 +17,13 @@ def read_file(name):
         f.close()
 
 
-PROJECT = 'skeleton'
-VERSION = '0.6'
-URL = 'http://github.com/dinoboff/skeleton'
-AUTHOR = 'Damien Lebrun'
-AUTHOR_EMAIL = 'dinoboff@gmail.com'
-DESC = "Basic Template system for project skeleton."
-LONG_DESC = read_file('README.rst') + '\n\n' + read_file('HISTORY.rst')
+PROJECT = 'pypinksign'
+VERSION = '0.1.1'
+URL = 'http://github.com/bandoche/PyPinkSign'
+AUTHOR = 'Sangjun Jung'
+AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
+DESC = "Basic NPKI module."
+LONG_DESC = read_file('README.rst')
 
 EXTRAS = {}
 
@@ -42,32 +38,27 @@ setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     url=URL,
-    license='BSD',
-    packages=['skeleton', 'skeleton.tests', 'skeleton.examples'],
-    test_suite='skeleton.tests',
+    license='MIT',
+    packages=['pypinksign'],
     include_package_data=True,
     zip_safe=False,
-    install_requires=[],
-    extras_require={
-        'virtualenv-templates':  [
-            'virtualenvwrapper>=2.1.1',
-            'virtualenvwrapper.project>=1.0'
-            ],
-    },
-    entry_points={
-        'virtualenvwrapper.project.template': [
-            'package = skeleton.examples.basicpackage:virtualenv_warpper_hook',
-            ],
-        },
+    install_requires=[
+        'pycrypto==2.6.1',
+        'pkcs1==0.9.5',
+        'pyasn1==0.1.7',
+        'cryptography==0.8.2',
+        'bitarray==0.8.1',
+        'PBKDF==1.0'
+    ],
+    keywords='npki 공인인증서 korean pki certificate',
+    platforms='OS Independent',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
-        'License :: OSI Approved :: BSD License',
+        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.1',
-        ],
+        'Programming Language :: Python :: 2.7'
+    ],
     **EXTRAS
 )

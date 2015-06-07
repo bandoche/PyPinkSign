@@ -1,3 +1,0 @@
-"""Skeleton test package
-
-"""
