@@ -159,6 +159,17 @@ class PinkSign:
         valid_until = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
         return (valid_from, valid_until)
 
+    def serialnum(self):
+        '''get serial number value
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        print p.serialnum()  # 123456789
+        print hex(p.serialnum())  # 0x1a2b3c4d
+        '''
+        if self.pubkey is None:
+            raise ValueError("Public key should be loaded for fetch serial number.")
+        return int(self.pub_cert[0][1])
+
     def sign(self, msg, algorithm=hashlib.sha256, length=256):
         '''signing with private key - pkcs1 encode and decrypt
 
