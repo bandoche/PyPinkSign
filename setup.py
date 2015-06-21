@@ -18,12 +18,12 @@ def read_file(name):
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.1.1'
+VERSION = '0.2'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
 DESC = "Basic NPKI module."
-LONG_DESC = read_file('README.rst')
+LONG_DESC = "See https://github.com/bandoche/PyPinkSign"  # read_file('README.rst')
 
 EXTRAS = {}
 
