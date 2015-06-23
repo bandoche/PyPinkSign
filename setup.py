@@ -18,7 +18,7 @@ def read_file(name):
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.2'
+VERSION = '0.2.1'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
