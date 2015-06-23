@@ -54,6 +54,9 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.2.1
+- Bug fix
+
 ### Ver. 0.2
 - Add function for get serial number of cert.
 - Remove README.rst in repository. 
