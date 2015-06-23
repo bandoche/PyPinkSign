@@ -103,7 +103,7 @@ class PinkSign:
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
         iter_cnt = int(der[0][1][1])  # usually 2048
         cipher_key = der[1].asOctets()  # encryped private key
-        dk = PBKDF1(prikey_password, salt, iter_cnt, 20)
+        dk = PBKDF1(self.prikey_password, salt, iter_cnt, 20)
         k = dk[:16]
         div = hashlib.sha1(dk[16:20]).digest()
 
