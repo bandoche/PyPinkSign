@@ -39,7 +39,7 @@ envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 
 ## Installation
 
-The easiest way to get skeleton is if you have setuptools / distribute *or* pip installed
+The easiest way to get PyPinkSign is if you have setuptools / distribute *or* pip installed
 
 	easy_install pypinksign
 
