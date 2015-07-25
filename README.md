@@ -1,6 +1,9 @@
 # PyPinkSign
 Small python code for K-PKI certificates. 공인인증서를 다루는 파이선 코드입니다.
 
+## Status
+[![Build Status](https://travis-ci.org/bandoche/PyPinkSign.svg)](https://travis-ci.org/bandoche/PyPinkSign)
+
 ## Support method
 - Load personal purpose of [NPKI](http://www.nsic.go.kr/ndsi/help/pki.do?menuId=MN050503) a.k.a "[공인인증서](http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp)"
 - Encrypt, Decrypt, Sign, Verify (part of Public-key cryptography)
