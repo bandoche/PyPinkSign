@@ -8,7 +8,7 @@ python:
 - 3.3
 - 3.4
 install:
-- python setup.py bdist_wheel
+- pip install .
 - pip install flake8
 script:
 - flake8 --ignore=E501 --exclude=__init__.py .
