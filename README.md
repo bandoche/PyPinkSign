@@ -33,7 +33,7 @@ envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 
 
 ## Requirement & Dependency
-- Python 2.7 (Probably works with python 3 and above, but not tested)
+- Python 2.7
 - [PyCrypto](https://pypi.python.org/pypi/pycrypto) for Crypto.PublicKey
 - [python-pkcs1](https://github.com/bdauvergne/python-pkcs1) for pkcs1
 - [PyASN1](http://pyasn1.sourceforge.net) for pyasn1
