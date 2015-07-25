@@ -73,5 +73,8 @@ The current development version can be found at
 ## Thanks to
 - [item4](https://github.com/item4)
 
+## Todo List
+- Python 3 support
+
 ## See also
 - [rootca.or.kr](http://rootca.or.kr/kor/standard/standard01A.jsp) - Technical Specification for K-PKI System
