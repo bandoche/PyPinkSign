@@ -1,0 +1,15 @@
+language: python
+sudo: false
+python:
+- pypy
+- 2.6
+- 2.7
+- 3.2
+- 3.3
+- 3.4
+install:
+- python setup.py bdist_wheel
+- pip install flake8
+script:
+- flake8 --ignore=E501 --exclude=__init__.py .
+- pushd /tmp && python -c 'import pypinksign' && popd
