@@ -57,8 +57,12 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.2.2
+- You can load private key file from string.
+- Update Docstring format.
+
 ### Ver. 0.2.1
-- Bug fix
+- Bug fix.
 
 ### Ver. 0.2
 - Add function for get serial number of cert.
