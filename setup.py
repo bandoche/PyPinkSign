@@ -18,7 +18,7 @@ def read_file(name):
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.2.2'
+VERSION = '0.2.3'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
@@ -46,7 +46,7 @@ setup(
         'pycrypto==2.6.1',
         'pkcs1==0.9.5',
         'pyasn1==0.1.7',
-        'cryptography==0.8.2',
+        'cryptography==1.5',
         'bitarray==0.8.1',
         'PBKDF==1.0'
     ],
