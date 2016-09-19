@@ -57,6 +57,9 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.2.3
+- Update `cryptography` dependency version to `1.5`.
+
 ### Ver. 0.2.2
 - You can load private key file from string.
 - Update Docstring format.
