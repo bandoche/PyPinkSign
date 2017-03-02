@@ -9,7 +9,7 @@ python:
 install:
 - pip install .
 - pip install flake8
-- php install PyOpenSSL
+- pip install PyOpenSSL
 script:
 - flake8 --ignore=E501 --exclude=__init__.py .
 - pushd /tmp && python -c 'import pypinksign' && popd
