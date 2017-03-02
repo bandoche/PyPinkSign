@@ -21,6 +21,10 @@ from cryptography.hazmat.backends import default_backend
 
 from OpenSSL import crypto
 
+# Python 2 and 3 compatibility
+from builtins import input
+
+
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
 id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
 id_pkcs7_enveloped_data = (1, 2, 840, 113549, 1, 7, 3)
@@ -46,6 +50,7 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         p = PinkSign(pubkey_data="0\x82...")
+        p = PinkSign(p12_path='/some/path/p12file.pfx', prikey_password="h@ppy-chr1stm@s")
         You can get help with choose_cert() function.
 
         Priority of Loading
@@ -160,13 +165,12 @@ class PinkSign:
         rsa_keys = (long(der_pri2[0][1]), long(der_pri2[0][2]), long(der_pri2[0][3]), long(der_pri2[0][4]), long(der_pri2[0][5]))
         self.prikey = RSA.construct(rsa_keys)
         if len(der_pri[0]) > 3:
-            # sometimes, r value is not exist (i don't know why..)
+            # sometimes, r value is not exist -  (i don't know why..)
             self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
         return
 
     def load_p12(self, p12_data=None):
         """Load key information from P12(PKCS12, Usually pfx)"""
-        # TODO
         if p12_data is None:
             p12_data = open(self.p12_path, 'rb').read()
 
@@ -346,7 +350,7 @@ def get_npki_path():
             path = expanduser("~/Documents/NPKI/")
             if os.path.isdir(path):
                 return path
-        raise "can't find certificate forder"
+        raise ValueError("can't find certificate forder")
 
     elif _platform == "win32":
         # Windows Vista or above. Sorry for XP.
@@ -355,7 +359,7 @@ def get_npki_path():
             path = expanduser("~/Documents/NPKI/")
             if os.path.isdir(path):
                 return path
-        raise "can't find certificate forder"
+        raise ValueError("can't find certificate forder")
     else:
         # default, but not expected to use this code.
         path = expanduser("~/NPKI/")
@@ -401,9 +405,9 @@ def choose_cert(basepath=None, dn=None, pw=None):
     i = 1
     for cert in cert_list:
         (dn, (valid_from, valid_until), issuer) = (cert.dn(), cert.valid_date(), cert.issuer())
-        print "[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer)
+        print ("[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer))
         i += 1
-    i = int(raw_input("Choose your certifiacte: "))
+    i = int(input("Choose your certifiacte: "))
     return cert_list[i - 1]
 
 
