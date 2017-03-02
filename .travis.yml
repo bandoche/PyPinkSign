@@ -1,12 +1,15 @@
 language: python
 sudo: false
 python:
-- pypy
-- 2.6
 - 2.7
+- 3.3
+- 3.4
+- 3.5
+- 3.6
 install:
 - pip install .
 - pip install flake8
+- php install PyOpenSSL
 script:
 - flake8 --ignore=E501 --exclude=__init__.py .
 - pushd /tmp && python -c 'import pypinksign' && popd
