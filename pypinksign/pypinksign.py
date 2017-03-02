@@ -19,6 +19,8 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
+from OpenSSL import crypto
+
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
 id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
 id_pkcs7_enveloped_data = (1, 2, 840, 113549, 1, 7, 3)
@@ -38,29 +40,45 @@ class PinkSign:
 
     """
 
-    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None):
+    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None, p12_path=None, p12_data=None):
         r"""You can init like
         p = PinkSign()
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         p = PinkSign(pubkey_data="0\x82...")
         You can get help with choose_cert() function.
+
+        Priority of Loading
+        1) P12 oath
+        2) P12 data
+            A) Public Key path
+            B) Public Key data
+
+            A) Private Key path
+            B) Private Key data
         """
         self.pubkey_path = pubkey_path
         self.prikey_path = prikey_path
         self.prikey_data = prikey_data
         self.prikey_password = prikey_password
+        self.p12_path = p12_path
+        self.p12_data = p12_data
         self.pub_cert = None
         self.prikey = None
         self.pubkey = None
         self.rand_num = None
-        if pubkey_path is not None:
-            self.load_pubkey()
-        elif pubkey_data is not None:
-            self.load_pubkey(pubkey_data=pubkey_data)
-        if prikey_path is not None and prikey_password is not None:
-            self.load_prikey()
-        pass
+        if p12_path is not None:
+            self.load_p12()
+        elif p12_data is not None:
+            self.load_p12(p12_data=p12_data)
+        else:
+            if pubkey_path is not None:
+                self.load_pubkey()
+            elif pubkey_data is not None:
+                self.load_pubkey(pubkey_data=pubkey_data)
+            if prikey_path is not None and prikey_password is not None:
+                self.load_prikey()
+        return
 
     def load_pubkey(self, pubkey_path=None, pubkey_data=None):
         r"""Load public key file
@@ -82,7 +100,7 @@ class PinkSign:
         self.pub_cert = der_decoder.decode(d)[0]
         # (n, e)
         self.pubkey = RSA.construct((long(get_pubkey_from_pub(self.pub_cert)), long(get_pub_e_from_pub(self.pub_cert))))
-        pass
+        return
 
     def load_prikey(self, prikey_path=None, prikey_data=None, prikey_password=None):
         r"""Load public key file
@@ -131,14 +149,37 @@ class PinkSign:
             iv = "123456789012345"
 
         prikey_data = seed_cbc_128_decrypt(k, cipher_key, iv)
-        der_pri = der_decoder.decode(prikey_data)
+        self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
+        return
+
+    def _load_prikey_with_decrypted_data(self, decrypted_prikey_data):
+        der_pri = der_decoder.decode(decrypted_prikey_data)
         der_pri2 = der_decoder.decode(der_pri[0][2])
 
         # (n, e, d, p, q)
         rsa_keys = (long(der_pri2[0][1]), long(der_pri2[0][2]), long(der_pri2[0][3]), long(der_pri2[0][4]), long(der_pri2[0][5]))
         self.prikey = RSA.construct(rsa_keys)
-        self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
-        pass
+        if len(der_pri[0]) > 3:
+            # sometimes, r value is not exist (i don't know why..)
+            self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
+        return
+
+    def load_p12(self, p12_data=None):
+        """Load key information from P12(PKCS12, Usually pfx)"""
+        # TODO
+        if p12_data is None:
+            p12_data = open(self.p12_path, 'rb').read()
+
+        p12 = crypto.load_pkcs12(p12_data, self.prikey_password)
+        prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
+        prikey_data = prikey_data.replace('-----BEGIN PRIVATE KEY-----\n', '').replace('\n-----END PRIVATE KEY-----', '').decode('base64')
+        pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
+        pubkey_data = pubkey_data.replace('-----BEGIN CERTIFICATE-----\n', '').replace('\n-----END CERTIFICATE-----', '').decode('base64')
+        # print pubkey_data
+        # print prikey_data.encode('base64')
+        self.load_pubkey(pubkey_data=pubkey_data)
+        self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
+        return
 
     def dn(self):
         """Get dn value
