@@ -8,7 +8,7 @@ from sys import platform as _platform
 
 from Crypto.PublicKey import RSA
 from bitarray import bitarray
-from PBKDF import PBKDF1
+# from PBKDF import PBKDF1
 from pkcs1 import emsa_pkcs1_v15
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
@@ -20,9 +20,9 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 from OpenSSL import crypto
-
+from hashlib import sha1
 # Python 2 and 3 compatibility
-from builtins import input
+from builtins import input, range
 
 
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
@@ -143,7 +143,7 @@ class PinkSign:
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
         iter_cnt = int(der[0][1][1])  # usually 2048
         cipher_key = der[1].asOctets()  # encryped private key
-        dk = PBKDF1(self.prikey_password, salt, iter_cnt, 20)
+        dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
         k = dk[:16]
         div = hashlib.sha1(dk[16:20]).digest()
 
@@ -179,8 +179,6 @@ class PinkSign:
         prikey_data = prikey_data.replace('-----BEGIN PRIVATE KEY-----\n', '').replace('\n-----END PRIVATE KEY-----', '').decode('base64')
         pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
         pubkey_data = pubkey_data.replace('-----BEGIN CERTIFICATE-----\n', '').replace('\n-----END CERTIFICATE-----', '').decode('base64')
-        # print pubkey_data
-        # print prikey_data.encode('base64')
         self.load_pubkey(pubkey_data=pubkey_data)
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
@@ -455,3 +453,29 @@ def get_pub_e_from_pub(pubkey):
 def bit2string(bit):
     """Convert bit-string asn.1 object to string"""
     return bitarray(bit.prettyPrint()[2:-3]).tobytes()
+
+
+# originally from https://pypi.python.org/pypi/PBKDF (Public Doamin)
+# modified for python2/3 compatibility
+def pbkdf1(password, salt, c=1200, dk_len=20):
+    """From PKCS#5 2.0 sect 5.1
+    PBKDF1 (P, S, c, dkLen)
+    Options: Hash underlying hash function
+    Input: P password, an octet string
+    S salt, an eight-octet string
+    c iteration count, a positive integer
+    dkLen intended length in octets of derived key, a positive integer, at most
+    16 for MD2 or MD5 and 20 for SHA-1
+    Output: DK derived key, a dkLen-octet string
+    """
+    # password, salt = checkTypes(password, salt, c, dkLen)
+    dk_max_len = hashlib.sha1().digest_size
+
+    assert dk_len <= dk_max_len, "derived key too long"
+    assert len(salt) == 8, 'Salt should be 8 bytes'
+
+    t = sha1(password + salt).digest()
+    for _ in range(2, c + 1):
+        t = sha1(t).digest()
+
+    return t[:dk_len]
