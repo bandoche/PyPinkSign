@@ -11,6 +11,9 @@ Small python code for K-PKI certificates. 공인인증서를 다루는 파이선
 - PKCS#7 sign, envelop
 
 ## Usage example
+
+Load public key file and private key file.
+
 ```python
 import pypinksign
 p = pypinksign.PinkSign()
@@ -19,6 +22,21 @@ p.load_prikey(prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
 sign = p.sign('1') 
 verify = p.verify(sign, '1')  # True
 ```
+
+Load specific certificate. (by DN)
+
+```python
+import pypinksign
+
+# choose_cert function automatically fetch path for certificates
+# and load certificate which match DN and passpharase for Private Key
+p = pypinksign.choose_cert(dn="홍길순", pw="i-am-h0ng")
+sign = p.sign('1') 
+verify = p.verify(sign, '1')  # True
+envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
+```
+
+Load PFX certificate.
 
 ```python
 import pypinksign
@@ -39,6 +57,7 @@ envelop = p.envelop_with_sign_msg('message')  # Envelop with K-PKI
 - [PyASN1](http://pyasn1.sourceforge.net) for pyasn1
 - [cryptography](https://cryptography.io/en/latest/) for cryptography.hazmat
 - [bitarray](https://pypi.python.org/pypi/bitarray/) 0.8.1 for bitarray.bitarray
+- [PyOpenSSL](https://github.com/pyca/pyopenssl) 16.2.0 for from OpenSSL.crypto
 
 ## Installation
 
@@ -56,6 +75,11 @@ The current development version can be found at
 
 
 ## History
+
+### Ver. 0.3
+- Add support for PFX (PKCS 12).
+- Add `PyOpenSSL` module for PFX support.
+- Remove `PBKDF1` module.
 
 ### Ver. 0.2.3
 - Update `cryptography` dependency version to `1.5`.
@@ -79,6 +103,7 @@ The current development version can be found at
 
 ## Thanks to
 - [item4](https://github.com/item4)
+- [peio](https://github.com/peio) for [PBKDF1](https://github.com/peio/PBKDF/) code.
 
 ## Todo List
 - Python 3 support

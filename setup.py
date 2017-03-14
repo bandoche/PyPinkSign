@@ -5,18 +5,6 @@ import sys
 from setuptools import setup
 
 
-def read_file(name):
-    """
-    Read file content
-    """
-    f = open(name)
-    try:
-        return f.read()
-    except IOError:
-        print("could not read %r" % name)
-        f.close()
-
-
 PROJECT = 'pypinksign'
 VERSION = '0.2.3'
 URL = 'http://github.com/bandoche/PyPinkSign'
@@ -48,7 +36,9 @@ setup(
         'pyasn1==0.1.7',
         'cryptography==1.5',
         'bitarray==0.8.1',
-        'PBKDF==1.0'
+        'pyOpenSSL==16.2.0',
+        'future',
+        # 'PBKDF==1.0'
     ],
     keywords='npki 공인인증서 korean pki certificate',
     platforms='OS Independent',
