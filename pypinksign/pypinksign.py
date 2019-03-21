@@ -455,7 +455,7 @@ def bit2string(bit):
     return bitarray(bit.prettyPrint()[2:-3]).tobytes()
 
 
-# originally from https://pypi.python.org/pypi/PBKDF (Public Doamin)
+# originally from https://pypi.python.org/pypi/PBKDF (Public Domain)
 # modified for python2/3 compatibility
 def pbkdf1(password, salt, c=1200, dk_len=20):
     """From PKCS#5 2.0 sect 5.1
