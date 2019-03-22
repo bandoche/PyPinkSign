@@ -46,7 +46,17 @@ class PinkSign:
     """
 
     def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None, p12_path=None, p12_data=None):
-        r"""You can init like
+        """
+        Initialize
+        :param pubkey_path: path for public key file (e.g "/some/path/signCert.der")
+        :param pubkey_data(bytes): raw payload for public key file (e.g "0\x82...")
+        :param prikey_path: path for private key file (e.g "/some/path/signPri.key")
+        :param prikey_data(bytes): raw payload for private key file (e.g "0\x82...")
+        :param prikey_password: passworkd for NPKI (e.g "h@ppy-chr1stm@s")
+        :param p12_path: path for p12/pfx file (e.g "/some/path/p12file.pfx")
+        :param p12_data: raw payload for p12/pfx (e.g "0\x82..."
+
+        You can init like
         p = PinkSign()
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
@@ -87,7 +97,7 @@ class PinkSign:
         return
 
     def load_pubkey(self, pubkey_path=None, pubkey_data=None):
-        r"""Load public key file
+        """Load public key file
 
         p = PinkSign()
         p.load_pubkey('/my/cert/signCert.der')
@@ -110,7 +120,7 @@ class PinkSign:
         return
 
     def load_prikey(self, prikey_path=None, prikey_data=None, prikey_password=None):
-        r"""Load public key file
+        """Load public key file
 
         p = PinkSign(pubkey_path='/my/cert/signCert.der')
         p.load_prikey('/my/cert/signPri.key', prikey_password='Y0u-m@y-n0t-p@ss')
@@ -238,8 +248,8 @@ class PinkSign:
             raise ValueError("Public key should be loaded for fetch serial number.")
         return int(self.pub_cert[0][1])
 
-        r"""Signing with private key - pkcs1 encode and decrypt
     def sign(self, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
+        """Signing with private key - pkcs1 encode and decrypt
 
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         s = p.sign('my message')  # '\x00\x01\x02...'
@@ -248,8 +258,8 @@ class PinkSign:
             raise ValueError("Private key is required for signing.")
         return self.prikey.sign(data=msg, padding=padding_, algorithm=algorithm)
 
-        r"""Verify with public key - encrypt and decode pkcs1 with hashed msg
     def verify(self, signature, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
+        """Verify with public key - encrypt and decode pkcs1 with hashed msg
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         s = p.sign('my message')  # '\x00\x01\x02...'
@@ -264,8 +274,8 @@ class PinkSign:
         except Exception as e:
             raise e
 
-        r"""Decrypt with private key - also used when signing.
     def decrypt(self, msg, padding_=PKCS1v15()):
+        """Decrypt with private key - also used when signing.
 
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
@@ -274,8 +284,8 @@ class PinkSign:
             raise ValueError("Priavte key is required for decryption.")
         return self.prikey.decrypt(ciphertext=msg, padding=padding_)
 
-        r"""Encrypt with public key - also used when verify sign
     def encrypt(self, msg, padding_=PKCS1v15()):
+        """Encrypt with public key - also used when verify sign
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         encrypted = p.encrypt('my message')  # '\x0a\x0b\x0c...'
