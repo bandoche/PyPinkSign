@@ -381,7 +381,7 @@ def get_npki_path():
         # OS X
         suspect = ["~/Documents/NPKI/", "~/NPKI/", "~/Library/Preferences/NPKI/"]
         for p in suspect:
-            path = expanduser("~/Documents/NPKI/")
+            path = expanduser(p)
             if os.path.isdir(path):
                 return path
         raise ValueError("can't find certificate folder")
@@ -390,7 +390,7 @@ def get_npki_path():
         # Windows Vista or above. Sorry for XP.
         suspect = ["C:/Program Files/NPKI/", "~/AppData/LocalLow/NPKI/"]
         for p in suspect:
-            path = expanduser("~/Documents/NPKI/")
+            path = expanduser(p)
             if os.path.isdir(path):
                 return path
         raise ValueError("can't find certificate folder")
