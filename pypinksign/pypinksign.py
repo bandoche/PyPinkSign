@@ -64,7 +64,7 @@ class PinkSign:
         p = PinkSign(p12_path='/some/path/p12file.pfx', prikey_password="h@ppy-chr1stm@s")
         You can get help with choose_cert() function.
 
-        Priority of Loading
+        Order of parameter
         1) P12 oath
         2) P12 data
             A) Public Key path
@@ -281,7 +281,7 @@ class PinkSign:
         msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
         """
         if self.prikey is None:
-            raise ValueError("Priavte key is required for decryption.")
+            raise ValueError("Private key is required for decryption.")
         return self.prikey.decrypt(ciphertext=msg, padding=padding_)
 
     def encrypt(self, msg, padding_=PKCS1v15()):
@@ -369,7 +369,7 @@ def get_npki_path():
             path = expanduser("~/Documents/NPKI/")
             if os.path.isdir(path):
                 return path
-        raise ValueError("can't find certificate forder")
+        raise ValueError("can't find certificate folder")
 
     elif _platform == "win32":
         # Windows Vista or above. Sorry for XP.
@@ -378,7 +378,7 @@ def get_npki_path():
             path = expanduser("~/Documents/NPKI/")
             if os.path.isdir(path):
                 return path
-        raise ValueError("can't find certificate forder")
+        raise ValueError("can't find certificate folder")
     else:
         # default, but not expected to use this code.
         path = expanduser("~/NPKI/")
