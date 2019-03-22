@@ -6,16 +6,17 @@ from os.path import expanduser
 from sys import platform as _platform
 
 
-from Crypto.PublicKey import RSA
 from bitarray import bitarray
-# from PBKDF import PBKDF1
-from pkcs1 import emsa_pkcs1_v15
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.type.univ import Sequence, ObjectIdentifier, Null, Set, Integer, OctetString
 from pyasn1.type import tag
 
-from cryptography.hazmat.primitives import padding
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
+    rsa_crt_dmp1, rsa_crt_dmq1
+from cryptography.hazmat.primitives import padding, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
@@ -104,7 +105,8 @@ class PinkSign:
             d = open(self.pubkey_path, 'rb').read()
         self.pub_cert = der_decoder.decode(d)[0]
         # (n, e)
-        self.pubkey = RSA.construct((long(get_pubkey_from_pub(self.pub_cert)), long(get_pub_e_from_pub(self.pub_cert))))
+        self.pubkey = RSAPublicNumbers(n=get_pubkey_from_pub(self.pub_cert),
+                                       e=get_pub_e_from_pub(self.pub_cert)).public_key(backend=default_backend())
         return
 
     def load_prikey(self, prikey_path=None, prikey_data=None, prikey_password=None):
@@ -162,8 +164,14 @@ class PinkSign:
         der_pri2 = der_decoder.decode(der_pri[0][2])
 
         # (n, e, d, p, q)
-        rsa_keys = (long(der_pri2[0][1]), long(der_pri2[0][2]), long(der_pri2[0][3]), long(der_pri2[0][4]), long(der_pri2[0][5]))
-        self.prikey = RSA.construct(rsa_keys)
+        (n, e, d, p, q) = (der_pri2[0][1], der_pri2[0][2], der_pri2[0][3], der_pri2[0][4], der_pri2[0][5])
+        iqmp = rsa_crt_iqmp(p, q)
+        dmp1 = rsa_crt_dmp1(e, p)
+        dmq1 = rsa_crt_dmq1(e, q)
+        pn = RSAPublicNumbers(n=n, e=e),
+
+        self.prikey = RSAPrivateNumbers(p=p, q=q, d=d, dmp1=dmp1, dmq1=dmq1, iqmp=iqmp,
+                                        public_numbers=pn).private_key(backend=default_backend())
         if len(der_pri[0]) > 3:
             # sometimes, r value is not exist -  (i don't know why..)
             self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
@@ -230,19 +238,18 @@ class PinkSign:
             raise ValueError("Public key should be loaded for fetch serial number.")
         return int(self.pub_cert[0][1])
 
-    def sign(self, msg, algorithm=hashlib.sha256, length=256):
         r"""Signing with private key - pkcs1 encode and decrypt
+    def sign(self, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
 
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         s = p.sign('my message')  # '\x00\x01\x02...'
         """
         if self.prikey is None:
-            raise ValueError("Priavte key is required for signing.")
-        hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
-        return self.decrypt(hashed)
+            raise ValueError("Private key is required for signing.")
+        return self.prikey.sign(data=msg, padding=padding_, algorithm=algorithm)
 
-    def verify(self, signature, msg, algorithm=hashlib.sha256, length=256):
         r"""Verify with public key - encrypt and decode pkcs1 with hashed msg
+    def verify(self, signature, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         s = p.sign('my message')  # '\x00\x01\x02...'
@@ -250,28 +257,32 @@ class PinkSign:
         """
         if self.pubkey is None:
             raise ValueError("Public key is required for verification.")
-        hashed = emsa_pkcs1_v15.encode(msg, length, None, algorithm)
-        return hashed == "\x00" * (len(hashed) - len(self.encrypt(signature))) + self.encrypt(signature)
+        try:
+            self.pubkey.verify(data=msg, signature=signature, padding=padding_, algorithm=algorithm)
+        except InvalidSignature:
+            return False
+        except Exception as e:
+            raise e
 
-    def decrypt(self, msg):
         r"""Decrypt with private key - also used when signing.
+    def decrypt(self, msg, padding_=PKCS1v15()):
 
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
         msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
         """
         if self.prikey is None:
             raise ValueError("Priavte key is required for decryption.")
-        return self.prikey.decrypt(msg)
+        return self.prikey.decrypt(ciphertext=msg, padding=padding_)
 
-    def encrypt(self, msg):
         r"""Encrypt with public key - also used when verify sign
+    def encrypt(self, msg, padding_=PKCS1v15()):
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         encrypted = p.encrypt('my message')  # '\x0a\x0b\x0c...'
         """
         if self.pubkey is None:
             raise ValueError("Public key is required for encryption.")
-        return self.pubkey.encrypt(msg, None)[0]
+        return self.pubkey.encrypt(msg, padding=padding_)
 
     def pkcs7_sign_msg(self, msg):
         """WIP: PKCS#7 sign with certificate

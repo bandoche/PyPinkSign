@@ -31,14 +31,11 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'pycrypto==2.6.1',
-        'pkcs1==0.9.5',
-        'pyasn1==0.1.7',
-        'cryptography==1.5',
-        'bitarray==0.8.1',
-        'pyOpenSSL==16.2.0',
+        'pyasn1==0.4.5',
+        'cryptography==2.6.1',
+        'bitarray==0.8.3',
+        'pyOpenSSL==19.0.0',
         'future',
-        # 'PBKDF==1.0'
     ],
     keywords='npki 공인인증서 korean pki certificate',
     platforms='OS Independent',
