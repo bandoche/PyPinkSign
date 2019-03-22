@@ -9,6 +9,8 @@ from sys import platform as _platform
 from bitarray import bitarray
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography import x509
+
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.type.univ import Sequence, ObjectIdentifier, Null, Set, Integer, OctetString
@@ -98,6 +100,8 @@ class PinkSign:
 
     def load_pubkey(self, pubkey_path=None, pubkey_data=None):
         """Load public key file
+        :param pubkey_path: (str) path for public key file
+        :param pubkey_data: (bytes) raw data from public key file
 
         p = PinkSign()
         p.load_pubkey('/my/cert/signCert.der')
@@ -113,10 +117,8 @@ class PinkSign:
             if pubkey_path is not None:
                 self.pubkey_path = pubkey_path
             d = open(self.pubkey_path, 'rb').read()
-        self.pub_cert = der_decoder.decode(d)[0]
-        # (n, e)
-        self.pubkey = RSAPublicNumbers(n=get_pubkey_from_pub(self.pub_cert),
-                                       e=get_pub_e_from_pub(self.pub_cert)).public_key(backend=default_backend())
+        self.pub_cert = x509.load_der_x509_certificate(d, default_backend())  # Certificate
+        self.pubkey = self.pub_cert.public_key()  # cryptography.hazmat.backends.openssl.rsa._RSAPublicKey
         return
 
     def load_prikey(self, prikey_path=None, prikey_data=None, prikey_password=None):
@@ -175,10 +177,11 @@ class PinkSign:
 
         # (n, e, d, p, q)
         (n, e, d, p, q) = (der_pri2[0][1], der_pri2[0][2], der_pri2[0][3], der_pri2[0][4], der_pri2[0][5])
+        (n, e, d, p, q) = (int(n), int(e), int(d), int(p), int(q))
         iqmp = rsa_crt_iqmp(p, q)
         dmp1 = rsa_crt_dmp1(e, p)
         dmq1 = rsa_crt_dmq1(e, q)
-        pn = RSAPublicNumbers(n=n, e=e),
+        pn = RSAPublicNumbers(n=n, e=e)
 
         self.prikey = RSAPrivateNumbers(p=p, q=q, d=d, dmp1=dmp1, dmq1=dmq1, iqmp=iqmp,
                                         public_numbers=pn).private_key(backend=default_backend())
@@ -207,35 +210,46 @@ class PinkSign:
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         print p.dn()  # "홍길순()0010023400506789012345"
         """
-        if self.pubkey is None:
+        if self.pub_cert is None:
             raise ValueError("Public key should be loaded for fetch DN.")
-        return self.pub_cert[0][5][4][0][1].asOctets()
+        for dn in self.pub_cert.subject.rdns:
+            if dn.rfc4514_string().startswith('CN='):
+                return dn.rfc4514_string()[3:]
+        return ''
 
     def issuer(self):
         """Get issuer value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        print p.dn()  # "WOORI"
+        print p.issuer()  # "yessign"
         """
-        if self.pubkey is None:
+        if self.pub_cert is None:
             raise ValueError("Public key should be loaded for fetch issuer.")
-        return str(self.pub_cert[0][5][3][0][1].asOctets())
+        for dn in self.pub_cert.issuer.rdns:
+            if dn.rfc4514_string().startswith('O='):
+                return dn.rfc4514_string()[2:]
+
+    def cert_type(self):
+        """Get issuer value
+
+        p = PinkSign(pubkey_path="/some/path/signCert.der")
+        print p.issuer()  # "yessignCA Class 2"
+        """
+        if self.pub_cert is None:
+            raise ValueError("Public key should be loaded for fetch issuer.")
+        for dn in self.pub_cert.issuer.rdns:
+            if dn.rfc4514_string().startswith('CN='):
+                return dn.rfc4514_string()[3:]
 
     def valid_date(self):
         """Get valid date range
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        print p.valid_date()  # ('2015-01-01 15:00:00', '2016-01-01 14:59:59')
+        print p.valid_date()  # datetime.datetime(2019, 6, 11, 14, 59, 59), datetime.datetime(2018, 6, 5, 7, 22)
         """
-        if self.pubkey is None:
+        if self.pub_cert is None:
             raise ValueError("Public key should be loaded for fetch valid date.")
-
-        s = self.pub_cert[0][4][0].asOctets()
-        valid_from = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
-
-        s = self.pub_cert[0][4][1].asOctets()
-        valid_until = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
-        return valid_from, valid_until
+        return self.pub_cert.not_valid_before, self.pub_cert.not_valid_after
 
     def serialnum(self):
         """Get serial number value
@@ -244,9 +258,9 @@ class PinkSign:
         print p.serialnum()  # 123456789
         print hex(p.serialnum())  # 0x1a2b3c4d
         """
-        if self.pubkey is None:
+        if self.pub_cert is None:
             raise ValueError("Public key should be loaded for fetch serial number.")
-        return int(self.pub_cert[0][1])
+        return self.pub_cert.serial_number
 
     def sign(self, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
         """Signing with private key - pkcs1 encode and decrypt
@@ -269,6 +283,7 @@ class PinkSign:
             raise ValueError("Public key is required for verification.")
         try:
             self.pubkey.verify(data=msg, signature=signature, padding=padding_, algorithm=algorithm)
+            return True
         except InvalidSignature:
             return False
         except Exception as e:
@@ -294,63 +309,63 @@ class PinkSign:
             raise ValueError("Public key is required for encryption.")
         return self.pubkey.encrypt(msg, padding=padding_)
 
-    def pkcs7_sign_msg(self, msg):
-        """WIP: PKCS#7 sign with certificate
-        Sign and encapsulize message
-        """
-        signed = self.sign(msg)
-
-        owner_cert_pub = self.pub_cert
-
-        # signedData (PKCS #7)
-        oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
-        oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-        oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
-        oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-
-        der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
-
-        data = Sequence()
-        data = data.setComponentByPosition(0, Integer(1))
-        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
-        data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.encode('hex')))))
-        data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
-
-        data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
-        data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
-        data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
-        data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
-        data4004 = OctetString(hexValue=signed.encode('hex'))
-
-        data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
-
-        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-
-        return der_encoder.encode(der)
-
-    def pkcs7_enveloped_msg(self, msg, data, iv="0123456789012345"):
-        """WIP: PKCS#7 envelop msg, data with cert"""
-        oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-        oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-        oi_seed_cbc = ObjectIdentifier(id_seed_cbc)
-
-        der = Sequence().setComponentByPosition(0, ObjectIdentifier(id_pkcs7_enveloped_data))
-
-        data_set = Sequence().setComponentByPosition(0, Integer(0))
-        data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
-        data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
-        data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.encode('hex')))
-
-        data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
-        data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.encode('hex'))))
-        data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.encode('hex')).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
-
-        data = Sequence().setComponentByPosition(0, Integer(0))
-        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))
-        data = data.setComponentByPosition(2, data_seq)
-
-        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-        return der_encoder.encode(der)
+    # def pkcs7_sign_msg(self, msg):
+    #     """WIP: PKCS#7 sign with certificate
+    #     Sign and encapsulize message
+    #     """
+    #     signed = self.sign(msg)
+    #
+    #     owner_cert_pub = self.pub_cert
+    #
+    #     # signedData (PKCS #7)
+    #     oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
+    #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
+    #     oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
+    #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
+    #
+    #     der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
+    #
+    #     data = Sequence()
+    #     data = data.setComponentByPosition(0, Integer(1))
+    #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
+    #     data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.encode('hex')))))
+    #     data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
+    #
+    #     data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
+    #     data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
+    #     data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
+    #     data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
+    #     data4004 = OctetString(hexValue=signed.encode('hex'))
+    #
+    #     data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
+    #
+    #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+    #
+    #     return der_encoder.encode(der)
+    #
+    # def pkcs7_enveloped_msg(self, msg, data, iv="0123456789012345"):
+    #     """WIP: PKCS#7 envelop msg, data with cert"""
+    #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
+    #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
+    #     oi_seed_cbc = ObjectIdentifier(id_seed_cbc)
+    #
+    #     der = Sequence().setComponentByPosition(0, ObjectIdentifier(id_pkcs7_enveloped_data))
+    #
+    #     data_set = Sequence().setComponentByPosition(0, Integer(0))
+    #     data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
+    #     data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
+    #     data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.encode('hex')))
+    #
+    #     data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
+    #     data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.encode('hex'))))
+    #     data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.encode('hex')).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
+    #
+    #     data = Sequence().setComponentByPosition(0, Integer(0))
+    #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))
+    #     data = data.setComponentByPosition(2, data_seq)
+    #
+    #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+    #     return der_encoder.encode(der)
 
 
 # utils
@@ -457,24 +472,15 @@ def seed_generator(size):
     return ''.join(chr(random.choice(range(255)) + 1) for _ in range(size))
 
 
-def get_pubkey_from_pub(pubkey):
-    """General function - extract public key from certificate object"""
-    pub_cert = pubkey[0][6][1]
-    pub_der = der_decoder.decode(bit2string(pub_cert))
-    return int(pub_der[0][0])
-
-
-def get_pub_e_from_pub(pubkey):
-    """General function - extract exponent of public key from certificate object"""
-    pub_cert = pubkey[0][6][1]
-    pub_der = der_decoder.decode(bit2string(pub_cert))
-    return int(pub_der[0][1])
-
-
 def bit2string(bit):
     """Convert bit-string asn.1 object to string"""
+    # FIXME: not work
     return bitarray(bit.prettyPrint()[2:-3]).tobytes()
 
+
+def bit2int(bit):
+    """Convert bit-string asn.1 object to number"""
+    return int(bit.prettyPrint())
 
 # originally from https://pypi.python.org/pypi/PBKDF (Public Domain)
 # modified for python2/3 compatibility
