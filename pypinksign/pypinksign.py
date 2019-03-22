@@ -235,7 +235,7 @@ class PinkSign:
 
         s = self.pub_cert[0][4][1].asOctets()
         valid_until = "20%s-%s-%s %s:%s:%s" % (s[0:2], s[2:4], s[4:6], s[6:8], s[8:10], s[10:12])
-        return (valid_from, valid_until)
+        return valid_from, valid_until
 
     def serialnum(self):
         """Get serial number value
