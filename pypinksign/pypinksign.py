@@ -233,14 +233,14 @@ class PinkSign:
             if dn.rfc4514_string().startswith('O='):
                 return dn.rfc4514_string()[2:]
 
-    def cert_type(self):
-        """Get issuer value
+    def cert_class(self):
+        """Get cert class
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        print p.issuer()  # "yessignCA Class 2"
+        print p.cert_class()  # "yessignCA Class 2"
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch issuer.")
+            raise ValueError("Public key should be loaded for fetch cert class.")
         for dn in self.pub_cert.issuer.rdns:
             if dn.rfc4514_string().startswith('CN='):
                 return dn.rfc4514_string()[3:]
