@@ -201,11 +201,11 @@ class PinkSign:
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
 
-    def dn(self):
-        """Get dn value
+    def cn(self):
+        """Get cn value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        print p.dn()  # "홍길순()0010023400506789012345"
+        print p.cn()  # "홍길순()0010023400506789012345"
         """
         if self.pub_cert is None:
             raise ValueError("Public key should be loaded for fetch DN.")
