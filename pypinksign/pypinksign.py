@@ -14,9 +14,6 @@ from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography import x509
 
 from pyasn1.codec.der import decoder as der_decoder
-from pyasn1.codec.der import encoder as der_encoder
-from pyasn1.type.univ import Sequence, ObjectIdentifier, Null, Set, Integer, OctetString
-from pyasn1.type import tag
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1
