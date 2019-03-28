@@ -2,7 +2,6 @@ language: python
 sudo: false
 python:
   - 3.6
-  - 3.7
 # Enable 3.7 without globally enabling sudo and dist: xenial for other build jobs
 matrix:
   include:
