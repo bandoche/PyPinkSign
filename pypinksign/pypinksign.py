@@ -1,29 +1,24 @@
 # coding=utf-8
 import base64
-from datetime import datetime
 import hashlib
 import os
 import random
+from datetime import datetime
+from hashlib import sha1
 from os.path import expanduser
 from sys import platform as _platform
 
-
+from OpenSSL import crypto
 from bitarray import bitarray
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography import x509
-
-from pyasn1.codec.der import decoder as der_decoder
-
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import padding, hashes
+from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1
-from cryptography.hazmat.primitives import padding, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-
-from OpenSSL import crypto
-from hashlib import sha1
-
+from pyasn1.codec.der import decoder as der_decoder
 
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
 id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
@@ -44,7 +39,8 @@ class PinkSign:
 
     """
 
-    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None, p12_path=None, p12_data=None):
+    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None,
+                 p12_path=None, p12_data=None):
         """
         Initialize
         :param pubkey_path: path for public key file (e.g "/some/path/signCert.der")
@@ -194,10 +190,12 @@ class PinkSign:
 
         p12 = crypto.load_pkcs12(p12_data, self.prikey_password)
         prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-        prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----', b'')
+        prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
+                                                                                         b'')
         prikey_data = base64.b64decode(prikey_data)
         pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
-        pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----', b'')
+        pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----',
+                                                                                         b'')
         pubkey_data = base64.b64decode(pubkey_data)
         self.load_pubkey(pubkey_data=pubkey_data)
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
@@ -253,7 +251,7 @@ class PinkSign:
                 if ext.oid.dotted_string == '2.5.29.32':  #
                     return ext.value[0].policy_identifier.dotted_string
             pass
-        except Exception as e:
+        except Exception:
             return ''
 
     def valid_date(self) -> (datetime, datetime):
@@ -454,7 +452,7 @@ def choose_cert(basepath=None, dn=None, pw=None):
     i = 1
     for cert in cert_list:
         (dn, (valid_from, valid_until), issuer) = (cert.dn(), cert.valid_date(), cert.issuer())
-        print ("[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer))
+        print("[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer))
         i += 1
     i = int(input("Choose your certifiacte: "))
     return cert_list[i - 1]
@@ -496,6 +494,7 @@ def bit2string(bit):
 def bit2int(bit):
     """Convert bit-string asn.1 object to number"""
     return int(bit.prettyPrint())
+
 
 # originally from https://pypi.python.org/pypi/PBKDF (Public Domain)
 # modified for python2/3 compatibility
