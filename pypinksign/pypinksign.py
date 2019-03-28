@@ -1,4 +1,6 @@
 # coding=utf-8
+import base64
+from datetime import datetime
 import hashlib
 import os
 import random
@@ -197,9 +199,11 @@ class PinkSign:
 
         p12 = crypto.load_pkcs12(p12_data, self.prikey_password)
         prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-        prikey_data = prikey_data.replace('-----BEGIN PRIVATE KEY-----\n', '').replace('\n-----END PRIVATE KEY-----', '').decode('base64')
+        prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----', b'')
+        prikey_data = base64.b64decode(prikey_data)
         pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
-        pubkey_data = pubkey_data.replace('-----BEGIN CERTIFICATE-----\n', '').replace('\n-----END CERTIFICATE-----', '').decode('base64')
+        pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----', b'')
+        pubkey_data = base64.b64decode(pubkey_data)
         self.load_pubkey(pubkey_data=pubkey_data)
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
@@ -242,6 +246,7 @@ class PinkSign:
                 return dn.rfc4514_string()[3:]
 
     def valid_date(self):
+    def valid_date(self) -> (datetime, datetime):
         """Get valid date range
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
