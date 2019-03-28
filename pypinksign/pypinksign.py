@@ -23,8 +23,6 @@ from cryptography.hazmat.backends import default_backend
 
 from OpenSSL import crypto
 from hashlib import sha1
-# Python 2 and 3 compatibility
-from builtins import input, range
 
 
 id_seed_cbc = (1, 2, 410, 200004, 1, 4)
