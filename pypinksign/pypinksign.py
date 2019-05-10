@@ -188,15 +188,7 @@ class PinkSign:
         if p12_data is None:
             p12_data = open(self.p12_path, 'rb').read()
 
-        p12 = crypto.load_pkcs12(p12_data, self.prikey_password)
-        prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-        prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
-                                                                                         b'')
-        prikey_data = base64.b64decode(prikey_data)
-        pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
-        pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----',
-                                                                                         b'')
-        pubkey_data = base64.b64decode(pubkey_data)
+        pubkey_data, prikey_data = separate_p12_into_npki(p12_data, self.prikey_password)
         self.load_pubkey(pubkey_data=pubkey_data)
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
@@ -520,3 +512,16 @@ def pbkdf1(password, salt, c=1200, dk_len=20):
         t = sha1(t).digest()
 
     return t[:dk_len]
+
+
+def separate_p12_into_npki(p12_data, prikey_password) -> (str, str):
+    p12 = crypto.load_pkcs12(p12_data, prikey_password)
+    prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
+    prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',                                                                                     b'')
+    prikey_data = base64.b64decode(prikey_data)
+
+    pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
+    pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----',
+                                                                                     b'')
+    pubkey_data = base64.b64decode(pubkey_data)
+    return pubkey_data, prikey_data
