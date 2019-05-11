@@ -375,8 +375,8 @@ class PinkSign:
 # utils
 def get_npki_path():
     """Return path for npki, depends on platform.
-    This function can't manage certificates in poratble storage.
-    Path for certifiacte is defined at http://www.rootca.or.kr/kcac/down/TechSpec/6.1-KCAC.TS.UI.pdf
+    This function can't manage certificates in portable storage.
+    Path for certificate is defined at http://www.rootca.or.kr/kcac/down/TechSpec/6.1-KCAC.TS.UI.pdf
     """
     if _platform == "linux" or _platform == "linux2":
         # linux
@@ -442,8 +442,8 @@ def choose_cert(basepath=None, dn=None, pw=None):
                     cert_list.append(cert)
     i = 1
     for cert in cert_list:
-        (dn, (valid_from, valid_until), issuer) = (cert.dn(), cert.valid_date(), cert.issuer())
-        print("[%d] %s (%s ~ %s) issued by %s" % (i, dn, valid_from, valid_until, issuer))
+        (cn, (valid_from, valid_until), issuer) = (cert.cn(), cert.valid_date(), cert.issuer())
+        print("[%d] %s (%s ~ %s) issued by %s" % (i, cn, valid_from, valid_until, issuer))
         i += 1
     i = int(input("Choose your certifiacte: "))
     return cert_list[i - 1]
@@ -516,7 +516,8 @@ def pbkdf1(password, salt, c=1200, dk_len=20):
 def separate_p12_into_npki(p12_data, prikey_password) -> (str, str):
     p12 = crypto.load_pkcs12(p12_data, prikey_password)
     prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-    prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',                                                                                     b'')
+    prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
+                                                                                     b'')
     prikey_data = base64.b64decode(prikey_data)
 
     pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
