@@ -20,10 +20,9 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pyasn1.codec.der import decoder as der_decoder
 
-id_seed_cbc = (1, 2, 410, 200004, 1, 4)
-id_seed_cbc_with_sha1 = (1, 2, 410, 200004, 1, 15)
-id_pkcs7_enveloped_data = (1, 2, 840, 113549, 1, 7, 3)
-
+ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
+ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
+ID_PKCS7_ENVELOPED_DATA = (1, 2, 840, 113549, 1, 7, 3)
 
 # class
 class PinkSign:
@@ -144,7 +143,7 @@ class PinkSign:
         # check if correct K-PKI prikey file
         algorithm_type = der[0][0].asTuple()
 
-        if algorithm_type not in (id_seed_cbc_with_sha1, id_seed_cbc):
+        if algorithm_type not in (ID_SEED_CBC_WITH_SHA1, ID_SEED_CBC):
             raise ValueError("prikey is not correct K-PKI private key file")
 
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
@@ -155,7 +154,7 @@ class PinkSign:
         div = hashlib.sha1(dk[16:20]).digest()
 
         # IV for SEED-CBC has dependency on Algorithm type (Old-style K-PKI or Renewal)
-        if algorithm_type == id_seed_cbc_with_sha1:
+        if algorithm_type == ID_SEED_CBC_WITH_SHA1:
             iv = div[:16]
         else:
             iv = "123456789012345"
