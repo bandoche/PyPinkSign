@@ -518,6 +518,11 @@ def pbkdf1(password, salt, c=1200, dk_len=20):
 
 
 def separate_p12_into_npki(p12_data, prikey_password) -> (str, str):
+    """
+    :param p12_data: (bytes) p12 file data
+    :param prikey_password: (str) p12 file password
+    :return: pubkey_data(bytes), prikey_data(bytes)
+    """
     p12 = crypto.load_pkcs12(p12_data, prikey_password)
     prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
     prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
