@@ -19,6 +19,10 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
     rsa_crt_dmp1, rsa_crt_dmq1
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pyasn1.codec.der import decoder as der_decoder
+from pyasn1.codec.der.encoder import encode
+from pyasn1.type.namedtype import NamedTypes, NamedType, OptionalNamedType, DefaultedNamedType
+from pyasn1.type.tag import Tag, tagClassContext, tagFormatSimple
+from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
@@ -525,3 +529,61 @@ def separate_p12_into_npki(p12_data, prikey_password) -> (str, str):
                                                                                      b'')
     pubkey_data = base64.b64decode(pubkey_data)
     return pubkey_data, prikey_data
+
+
+class AlgorithmIdentifierData(Sequence):
+    componentType = NamedTypes(
+        NamedType('salt', OctetString()),
+        NamedType('iteration', Integer())
+    )
+
+
+class AlgorithmIdentifier(Sequence):
+    componentType = NamedTypes(
+        NamedType('oid', ObjectIdentifier()),
+        NamedType('data', AlgorithmIdentifierData()),
+    )
+
+
+class NPKIPrivateKey(Sequence):
+    componentType = NamedTypes(
+        NamedType('meta', AlgorithmIdentifier()),
+        NamedType('ciphertext', OctetString()),
+    )
+
+
+def encrypt_decrypted_prikey(prikey_b64, prikey_pw, salt_b64=None, iter_cnt=2048) -> str:
+    """
+    Encrypt decrypted NPKI private key file
+    :param prikey_b64: decrypted NPKI private key in base64 form (e.g., "MII....")
+    :param prikey_pw: password used for NPKI
+    :param salt_b64: (optional) in case you really need specify salt for pbkdf1
+    :param iter_cnt: iteration count for pbkdf1 (usually 2048)
+    :return: (str) base64 encoded encrypted private key (e.g., "MII...")
+    """
+
+    if salt_b64:
+        salt = base64.b64decode(salt_b64)
+    else:
+        salt = bytes(random.getrandbits(8) for _ in range(8))
+    pri_key = base64.b64decode(prikey_b64)
+
+    dk = pbkdf1(prikey_pw, salt, iter_cnt, 20)
+    k = dk[:16]
+    div = hashlib.sha1(dk[16:20]).digest()
+    iv = div[:16]
+    cipher_text = seed_cbc_128_encrypt(k, pri_key, iv)
+
+    algorithm_identifier_data = AlgorithmIdentifierData()
+    algorithm_identifier_data['salt'] = salt  # b'\x88\x57\xE4\x42\xB0\x1E\x52\x62'
+    algorithm_identifier_data['iteration'] = 2048
+
+    algorithm_identifier = AlgorithmIdentifier()
+    algorithm_identifier['data'] = algorithm_identifier_data
+    algorithm_identifier['oid'] = ID_SEED_CBC_WITH_SHA1
+
+    npki_private_key = NPKIPrivateKey()
+    npki_private_key['meta'] = algorithm_identifier
+    npki_private_key['ciphertext'] = cipher_text
+    encoded = encode(npki_private_key)
+    return base64.b64encode(encoded).decode('latin1')
