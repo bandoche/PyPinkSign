@@ -20,8 +20,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der.encoder import encode
-from pyasn1.type.namedtype import NamedTypes, NamedType, OptionalNamedType, DefaultedNamedType
-from pyasn1.type.tag import Tag, tagClassContext, tagFormatSimple
+from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
