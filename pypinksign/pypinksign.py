@@ -20,12 +20,15 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der.encoder import encode
+from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
-from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier
+from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
 ID_PKCS7_ENVELOPED_DATA = (1, 2, 840, 113549, 1, 7, 3)
+ID_PKCS1_ENCRYPTION = (1, 2, 840, 113549, 1, 1, 1)
+ID_KISA_NPKI_RAND_NUM = (1, 2, 410, 200004, 10, 1, 1, 3)
 
 # class
 class PinkSign:
@@ -579,7 +582,7 @@ def encrypt_decrypted_prikey(prikey_b64, prikey_pw, salt_b64=None, iter_cnt=2048
     cipher_text = seed_cbc_128_encrypt(k, pri_key, iv)
 
     algorithm_identifier_data = AlgorithmIdentifierData()
-    algorithm_identifier_data['salt'] = salt  # b'\x88\x57\xE4\x42\xB0\x1E\x52\x62'
+    algorithm_identifier_data['salt'] = salt
     algorithm_identifier_data['iteration'] = 2048
 
     algorithm_identifier = AlgorithmIdentifier()
@@ -591,3 +594,89 @@ def encrypt_decrypted_prikey(prikey_b64, prikey_pw, salt_b64=None, iter_cnt=2048
     npki_private_key['ciphertext'] = cipher_text
     encoded = encode(npki_private_key)
     return base64.b64encode(encoded).decode('latin1')
+
+
+class Version(Integer):
+    pass
+
+
+class RSAPrivateKey(Sequence):
+    componentType = NamedTypes(
+        NamedType('version', Version()),
+        NamedType('modulus', Integer()),
+        NamedType('publicExponent', Integer()),
+        NamedType('privateExponent', Integer()),
+        NamedType('prime1', Integer()),
+        NamedType('prime2', Integer()),
+        NamedType('exponent1', Integer()),
+        NamedType('exponent2', Integer()),
+        NamedType('coefficient', Integer())
+    )
+
+
+class RSAPrivateKeyOctet(Sequence):
+    componentType = NamedTypes(
+        NamedType('key', RSAPrivateKey())
+    )
+
+
+class NPKIPrivateKeyRandomNumberSet(Set):
+    componentType = NamedTypes(
+        NamedType('rand', BitString())
+    )
+
+
+class NPKIPrivateKeyRandomNumber(Sequence):
+    componentType = NamedTypes(
+        NamedType('oid', ObjectIdentifier()),
+        NamedType('rand_set', NPKIPrivateKeyRandomNumberSet()),
+
+    )
+
+class NPKIPrivateKeyRandomNumberSeqSet(Set):
+    componentType = NamedTypes(
+        NamedType('rand_seq', NPKIPrivateKeyRandomNumber())
+    )
+
+class NPKIPlainPrivateKeyInfo(Sequence):
+    componentType = NamedTypes(
+        NamedType('oid', ObjectIdentifier()),
+        NamedType('null', Null())
+    )
+
+
+class NPKIPlainPrivateKey(Sequence):
+    componentType = NamedTypes(
+        NamedType('version', Integer()),
+        NamedType('info', NPKIPlainPrivateKeyInfo()),
+        NamedType('private_key_octet', RSAPrivateKeyOctet().subtype(implicitTag=tag.Tag(tag.tagClassUniversal, tag.tagFormatSimple, 4))),
+        NamedType('rand', NPKIPrivateKeyRandomNumberSeqSet().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
+    )
+
+
+def inject_rand_in_plain_prikey(prikey_b64, rand_num) -> str:
+    """
+    Inject rand num for NPKI private key
+    :param prikey_b64: decrypted NPKI private key in base64 form (e.g., "MII....")
+    :param rand_num: (bytes) rand num for 1.2.410.200004.10.1.1.3
+    :return: base64 encoded private key without encryption
+    """
+    private_key, rest_of_input = der_decoder.decode(base64.b64decode(prikey_b64), asn1Spec=RSAPrivateKey())
+    rand_num_set = NPKIPrivateKeyRandomNumberSet()
+    rand_num_set['rand'] = BitString(hexValue=rand_num.hex())
+    rand_num_seq = NPKIPrivateKeyRandomNumber()
+    rand_num_seq['oid'] = ID_KISA_NPKI_RAND_NUM
+    rand_num_seq['rand_set'] = rand_num_set
+    rand_num_seqset = NPKIPrivateKeyRandomNumberSeqSet().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))
+    rand_num_seqset['rand_seq'] = rand_num_seq
+    prikey_octet = RSAPrivateKeyOctet().subtype(implicitTag=tag.Tag(tag.tagClassUniversal, tag.tagFormatSimple, 4))
+    prikey_octet['key'] = private_key
+    prikey_info = NPKIPlainPrivateKeyInfo()
+    prikey_info['oid'] = ID_PKCS1_ENCRYPTION
+    prikey_plain = NPKIPlainPrivateKey()
+    prikey_plain['version'] = 0
+    prikey_plain['info'] = prikey_info
+    prikey_plain['private_key_octet'] = prikey_octet
+    prikey_plain['rand'] = rand_num_seqset
+    dump = base64.b64encode(encode(prikey_plain))
+    return dump.decode('latin1')
