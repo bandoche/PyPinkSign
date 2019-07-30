@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der.encoder import encode
 from pyasn1.type import tag
@@ -26,6 +27,7 @@ from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, S
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
+ID_PBES2 = (1, 2, 840, 113549, 1, 5, 13)
 ID_PKCS7_ENVELOPED_DATA = (1, 2, 840, 113549, 1, 7, 3)
 ID_PKCS1_ENCRYPTION = (1, 2, 840, 113549, 1, 1, 1)
 ID_KISA_NPKI_RAND_NUM = (1, 2, 410, 200004, 10, 1, 1, 3)
@@ -150,21 +152,17 @@ class PinkSign:
         # check if correct K-PKI prikey file
         algorithm_type = der[0][0].asTuple()
 
-        if algorithm_type not in (ID_SEED_CBC_WITH_SHA1, ID_SEED_CBC):
+        private_key_decryption_key_functions = {
+            ID_SEED_CBC_WITH_SHA1: self.get_private_key_decryption_key_for_seed_cbc_with_sha1,
+            ID_SEED_CBC: self.get_private_key_decryption_key_for_seed_cbc,
+            ID_PBES2: self.get_private_key_decryption_key_for_pbes2,
+        }
+
+        if algorithm_type not in private_key_decryption_key_functions.keys():
             raise ValueError("prikey is not correct K-PKI private key file")
 
-        salt = der[0][1][0].asOctets()  # salt for pbkdf#5
-        iter_cnt = int(der[0][1][1])  # usually 2048
-        cipher_key = der[1].asOctets()  # encryped private key
-        dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
-        k = dk[:16]
-        div = hashlib.sha1(dk[16:20]).digest()
-
-        # IV for SEED-CBC has dependency on Algorithm type (Old-style K-PKI or Renewal)
-        if algorithm_type == ID_SEED_CBC_WITH_SHA1:
-            iv = div[:16]
-        else:
-            iv = "123456789012345"
+        k, iv = private_key_decryption_key_functions[algorithm_type](der)
+        cipher_key = der[1].asOctets()  # encrypted private key
 
         prikey_data = seed_cbc_128_decrypt(k, cipher_key, iv)
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
@@ -377,6 +375,38 @@ class PinkSign:
     #
     #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
     #     return der_encoder.encode(der)
+
+    def get_private_key_decryption_key_for_seed_cbc_with_sha1(self, der):
+        salt = der[0][1][0].asOctets()  # salt for pbkdf#5
+        iter_cnt = int(der[0][1][1])  # usually 2048
+        dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
+        k = dk[:16]
+        div = hashlib.sha1(dk[16:20]).digest()
+        iv = div[:16]
+        return k, iv
+
+    def get_private_key_decryption_key_for_seed_cbc(self, der):
+        salt = der[0][1][0].asOctets()  # salt for pbkdf#5
+        iter_cnt = int(der[0][1][1])  # usually 2048
+        dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
+        k = dk[:16]
+        iv = b"0123456789012345"
+        return k, iv
+
+    def get_private_key_decryption_key_for_pbes2(self, der):
+        # https://github.com/bandoche/PyPinkSign/issues/7
+        salt = der[0][1][0][1][0].asOctets()  # salt for pkcs#5
+        iter_cnt = int(der[0][1][0][1][1])  # usually 2048
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA1(),
+            length=16,
+            salt=salt,
+            iterations=iter_cnt,
+            backend=default_backend(),
+        )
+        k = kdf.derive(self.prikey_password.encode())
+        iv = der[0][1][1][1].asOctets()
+        return k, iv
 
 
 # utils
