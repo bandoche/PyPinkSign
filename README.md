@@ -104,6 +104,7 @@ The current development version can be found at
 ## Thanks to
 - [item4](https://github.com/item4)
 - [peio](https://github.com/peio) for [PBKDF1](https://github.com/peio/PBKDF/) code.
+- [youngminz](https://github.com/youngminz) for PBES2 support.
 
 ## Todo List
 - Python 3 support
