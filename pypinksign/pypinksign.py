@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pyasn1.codec.der import decoder as der_decoder
+from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.codec.der.encoder import encode
 from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
@@ -79,6 +80,7 @@ class PinkSign:
         self.p12_data = p12_data
         self.pub_cert = None
         self.prikey: RSAPrivateKey = None
+        self.pub_data: bytes = None
         self.pubkey: RSAPublicKey = None
         self.rand_num = None
         if p12_path is not None:
@@ -108,12 +110,12 @@ class PinkSign:
             raise ValueError("Neither pubkey_path nor pubkey_data is exist.")
 
         if pubkey_data is not None:
-            d = pubkey_data
+            self.pub_data = pubkey_data
         else:
             if pubkey_path is not None:
                 self.pubkey_path = pubkey_path
-            d = open(self.pubkey_path, 'rb').read()
-        self.pub_cert = x509.load_der_x509_certificate(d, default_backend())  # Certificate
+            self.pub_data = open(self.pubkey_path, 'rb').read()
+        self.pub_cert = x509.load_der_x509_certificate(self.pub_data, default_backend())  # Certificate
         self.pubkey = self.pub_cert.public_key()  # cryptography.hazmat.backends.openssl.rsa._RSAPublicKey
         return
 
@@ -310,41 +312,41 @@ class PinkSign:
             raise ValueError("Public key is required for encryption.")
         return self.pubkey.encrypt(msg, padding=padding_)
 
-    # def pkcs7_sign_msg(self, msg):
-    #     """WIP: PKCS#7 sign with certificate
-    #     Sign and encapsulize message
-    #     """
-    #     signed = self.sign(msg)
-    #
-    #     owner_cert_pub = self.pub_cert
-    #
-    #     # signedData (PKCS #7)
-    #     oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
-    #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-    #     oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
-    #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-    #
-    #     der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
-    #
-    #     data = Sequence()
-    #     data = data.setComponentByPosition(0, Integer(1))
-    #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
-    #     data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.encode('hex')))))
-    #     data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
-    #
-    #     data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
-    #     data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
-    #     data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
-    #     data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
-    #     data4004 = OctetString(hexValue=signed.encode('hex'))
-    #
-    #     data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
-    #
-    #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-    #
-    #     return der_encoder.encode(der)
-    #
-    # def pkcs7_enveloped_msg(self, msg, data, iv="0123456789012345"):
+    def pkcs7_signed_msg(self, msg: bytes):
+        """PKCS#7 signed with certificate
+        Sign and encapsulate message
+        """
+        signed = self.sign(msg)
+
+        owner_cert_pub = der_decoder.decode(self.pub_data)[0]
+
+        # signedData (PKCS #7)
+        oi_pkcs7_signed = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 2))
+        oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
+        oi_sha256 = ObjectIdentifier((2, 16, 840, 1, 101, 3, 4, 2, 1))
+        oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
+
+        der = Sequence().setComponentByPosition(0, oi_pkcs7_signed)
+
+        data = Sequence()
+        data = data.setComponentByPosition(0, Integer(1))
+        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
+        data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.hex()))))
+        data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
+
+        data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
+        data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
+        data4002 = Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))
+        data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
+        data4004 = OctetString(hexValue=signed.hex())
+
+        data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
+
+        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+
+        return der_encoder.encode(der)
+
+    # def pkcs7_enveloped_msg(self, msg, data, iv=b"0123456789012345"):
     #     """WIP: PKCS#7 envelop msg, data with cert"""
     #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
     #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
@@ -355,11 +357,11 @@ class PinkSign:
     #     data_set = Sequence().setComponentByPosition(0, Integer(0))
     #     data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
     #     data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
-    #     data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.encode('hex')))
+    #     data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.hex()))
     #
     #     data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
-    #     data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.encode('hex'))))
-    #     data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.encode('hex')).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
+    #     data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.hex())))
+    #     data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.hex()).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
     #
     #     data = Sequence().setComponentByPosition(0, Integer(0))
     #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))

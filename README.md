@@ -33,7 +33,7 @@ import pypinksign
 p = pypinksign.choose_cert(cn="홍길순", pw=b"i-am-h0ng")
 sign = p.sign(b'1') 
 verify = p.verify(sign, b'1')  # True
-envelop = p.envelop_with_sign_msg(b'message')  # Envelop with K-PKI - Temporary removed
+envelop = p.pkcs7_signed_msg(b'message')  # PKCS7 signed with K-PKI
 ```
 
 Load PFX(p12) certificate.
@@ -47,7 +47,7 @@ p = pypinksign.PinkSign(p12_path="홍길순.pfx", prikey_password=b"i-am-h0ng")
 p.load_prikey()
 sign = p.sign(b'1') 
 verify = p.verify(sign, b'1')  # True
-envelop = p.envelop_with_sign_msg(b'message')  # Envelop with K-PKI - Temporary removed
+envelop = p.pkcs7_enveloped_msg(b'message')  # Envelop with K-PKI - Temporary removed
 ```
 
 
@@ -70,6 +70,9 @@ The current development version can be found at
 
 
 ## History
+
+## Ver. 0.4.1 (2020-02-26)
+- Add PKCS7 sign message.
 
 ### Ver. 0.4 (2020-02-26)
 - Drop Python 2 support. 
