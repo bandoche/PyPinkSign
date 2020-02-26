@@ -9,11 +9,10 @@ before_install:
   - python --version
   - pip install -U pip
   - pip install -U pytest
-  - pip install codecov
+  - pip install flake8 codecov
 
 install:
   - pip install .
-  - pip install flake8
   - pip install PyOpenSSL pyasn1 cryptography
 
 script:
