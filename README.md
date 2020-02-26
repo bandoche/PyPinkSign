@@ -7,8 +7,8 @@ Small python code for K-PKI certificates. 공인인증서를 다루는 파이선
 ## Support method
 - Load personal purpose of [NPKI](http://www.nsic.go.kr/ndsi/help/pki.do?menuId=MN050503) a.k.a "[공인인증서](http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp)"
 - Encrypt, Decrypt, Sign, Verify (part of Public-key cryptography)
-- Get Details (Valid date, Serial number, DN)
-- PKCS#7 sign, envelop
+- Get Details (Valid date, Serial number, CN)
+- PKCS#7 sign, envelop (WIP)
 
 ## Usage example
 
@@ -23,7 +23,7 @@ sign = p.sign(b'1')
 verify = p.verify(sign, b'1')  # True
 ```
 
-Load specific certificate. (by DN)
+Load specific certificate. (by CN)
 
 ```python
 import pypinksign
@@ -36,14 +36,15 @@ verify = p.verify(sign, b'1')  # True
 envelop = p.envelop_with_sign_msg(b'message')  # Envelop with K-PKI - Temporary removed
 ```
 
-Load PFX certificate.
+Load PFX(p12) certificate.
 
 ```python
 import pypinksign
 
 # choose_cert function automatically fetch path for certificates
 # and load certificate which match DN and passpharase for Private Key
-p = pypinksign.choose_cert(cn="홍길순", pw=b"i-am-h0ng")
+p = pypinksign.PinkSign(p12_path="홍길순.pfx", prikey_password=b"i-am-h0ng")
+p.load_prikey()
 sign = p.sign(b'1') 
 verify = p.verify(sign, b'1')  # True
 envelop = p.envelop_with_sign_msg(b'message')  # Envelop with K-PKI - Temporary removed
@@ -74,7 +75,7 @@ The current development version can be found at
 
 ## History
 
-### Ver. 0.4 (2020-02-xx)
+### Ver. 0.4 (2020-02-26)
 - Drop Python 2 support. 
 - Support Python 3.6 or above.
 - Add type hinting.
