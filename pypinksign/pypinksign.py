@@ -35,17 +35,8 @@ ID_KISA_NPKI_RAND_NUM = (1, 2, 410, 200004, 10, 1, 1, 3)
 
 # class
 class PinkSign:
-    """Main class for PinkSign
+    """Main class for PinkSign"""
 
-    If the class has public attributes, they may be documented here
-    in an ``Attributes`` section and follow the same formatting as a
-    function's ``Args`` section. Alternatively, attributes may be documented
-    inline with the attribute's declaration (see __init__ method below).
-
-    Properties created with the ``@property`` decorator should be documented
-    in the property's getter method.
-
-    """
 
     def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None,
                  p12_path=None, p12_data=None):
@@ -67,9 +58,10 @@ class PinkSign:
         p = PinkSign(p12_path='/some/path/p12file.pfx', prikey_password="h@ppy-chr1stm@s")
         You can get help with choose_cert() function.
 
-        Order of parameter
-        1) P12 oath
+        Priority of parameter
+        1) P12 path
         2) P12 data
+        3)
             A) Public Key path
             B) Public Key data
 
@@ -130,7 +122,7 @@ class PinkSign:
 
         """
         if self.pubkey is None:
-            raise ValueError("pubkey should be loaded first.")
+            raise ValueError("public key file should be loaded before load private key.")
         if not any([self.prikey_path, prikey_path, self.prikey_data, prikey_data]):
             raise ValueError("prikey_path(prikey_data) is not defined.")
         if not any([self.prikey_password, prikey_password]):
@@ -204,7 +196,7 @@ class PinkSign:
         print p.cn()  # "홍길순()0010023400506789012345"
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch DN.")
+            raise ValueError("Public key should be loaded before fetching DN.")
         for dn in self.pub_cert.subject.rdns:
             if dn.rfc4514_string().startswith('CN='):
                 return dn.rfc4514_string()[3:]
@@ -217,7 +209,7 @@ class PinkSign:
         print p.issuer()  # "yessign"
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch issuer.")
+            raise ValueError("Public key should be loaded before fetching issuer.")
         for dn in self.pub_cert.issuer.rdns:
             if dn.rfc4514_string().startswith('O='):
                 return dn.rfc4514_string()[2:]
@@ -229,13 +221,14 @@ class PinkSign:
         print p.cert_class()  # "yessignCA Class 2"
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch cert class.")
+            raise ValueError("Public key should be loaded before fetching cert class.")
         for dn in self.pub_cert.issuer.rdns:
             if dn.rfc4514_string().startswith('CN='):
                 return dn.rfc4514_string()[3:]
 
     def cert_type_oid(self):
         """Get cert type
+        TODO: bad way to find value following oid. exception may occurred with certain certificate
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         print p.cert_type_oid()  # "1.2.410.200005.1.1.4"
@@ -257,7 +250,7 @@ class PinkSign:
         print p.valid_date()  # datetime.datetime(2019, 6, 11, 14, 59, 59), datetime.datetime(2018, 6, 5, 7, 22)
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch valid date.")
+            raise ValueError("Public key should be loaded before fetching valid date.")
         return self.pub_cert.not_valid_before, self.pub_cert.not_valid_after
 
     def serialnum(self):
@@ -268,13 +261,13 @@ class PinkSign:
         print hex(p.serialnum())  # 0x1a2b3c4d
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch serial number.")
+            raise ValueError("Public key should be loaded before fetching serial number.")
         return self.pub_cert.serial_number
 
     def sign(self, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
         """Signing with private key - pkcs1 encode and decrypt
 
-        p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        p = PinkSign(pubkey_path="/path/signCert.der", prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
         s = p.sign('my message')  # '\x00\x01\x02...'
         """
         if self.prikey is None:
@@ -301,7 +294,7 @@ class PinkSign:
     def decrypt(self, msg, padding_=PKCS1v15()):
         """Decrypt with private key - also used when signing.
 
-        p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
+        p = PinkSign(pubkey_path="/path/signCert.der", prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
         msg = p.decrypt('\x0a\x0b\x0c...')  # 'my message'
         """
         if self.prikey is None:
