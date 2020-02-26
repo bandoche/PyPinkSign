@@ -13,12 +13,11 @@ before_install:
 
 install:
   - pip install .
-  - pip install PyOpenSSL pyasn1 cryptography
 
 script:
   - flake8 --ignore=E501 --exclude=__init__.py .
   - pushd /tmp && python -c 'import pypinksign' && popd
-  - pytest
+  - coverage run pypinksign/test_pinkSign.py
 
 after_success:
   - codecov # submit coverage
