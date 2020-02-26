@@ -320,10 +320,10 @@ class TestPinkSign(TestCase):
         self.c.load_prikey()
         self.assertEqual(expected, self.c.get_private_key_decryption_key_for_pbes2(der))
 
-    def test_pkcs7_sign_msg(self):
+    def test_pkcs7_signed_msg(self):
         expected = TEST_CERT['pkcs7SignMsg']
         self.c.load_prikey()
-        self.assertEqual(expected, self.c.pkcs7_sign_msg(TEST_CERT['testMsg']))
+        self.assertEqual(expected, self.c.pkcs7_signed_msg(TEST_CERT['testMsg']))
 
 
 if __name__ == '__main__':
