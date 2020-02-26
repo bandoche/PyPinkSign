@@ -1,6 +1,7 @@
 # coding=utf-8
 import base64
 import hashlib
+import logging
 import os
 import random
 from datetime import datetime
@@ -9,14 +10,13 @@ from os.path import expanduser
 from sys import platform as _platform
 
 from OpenSSL import crypto
-from bitarray import bitarray
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding, hashes
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
-    rsa_crt_dmp1, rsa_crt_dmq1
+    rsa_crt_dmp1, rsa_crt_dmq1, RSAPublicKey, RSAPrivateKey
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pyasn1.codec.der import decoder as der_decoder

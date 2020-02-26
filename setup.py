@@ -31,11 +31,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'pyasn1==0.4.5',
-        'cryptography==2.6.1',
+        'pyasn1==0.4.8',
+        'cryptography==2.8',
         'bitarray==0.8.3',
-        'pyOpenSSL==19.0.0',
-        'future',
+        'pyOpenSSL==19.1.0',
     ],
     keywords='npki 공인인증서 korean pki certificate',
     platforms='OS Independent',
@@ -44,10 +43,10 @@ setup(
         'Environment :: Console',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7'
-        'Programming Language :: Python :: 3.6'
-        'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3 :: Only',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8'
     ],
     **EXTRAS
 )
