@@ -437,14 +437,6 @@ def get_npki_path():
     return path
 
 
-def url_encode(str):
-    """Escape char to url encoding"""
-    return str.replace(' ', '%20')
-
-
-def paramize(param):
-    """Make dict to param for get
-    TODO: use urllib or else
 def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
     """
     Show console dialog listing certificates
@@ -453,13 +445,6 @@ def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
     :param pw: (optional) if filter dn, load certificate automatically with pw
     :return: selected PinkSign object
     """
-    params = []
-    for k in param:
-        params.append("%s=%s" % (url_encode(k), url_encode(param[k])))
-
-    return "&".join(params)
-
-
     cert_list = []
     if base_path is not None:
         path = base_path
@@ -513,17 +498,6 @@ def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789
 def seed_generator(size: int):
     """General function - get random size-bytes string for seed"""
     return ''.join(chr(random.choice(range(255)) + 1) for _ in range(size))
-
-
-def bit2string(bit):
-    """Convert bit-string asn.1 object to string"""
-    # FIXME: not work
-    return bitarray(bit.prettyPrint()[2:-3]).tobytes()
-
-
-def bit2int(bit):
-    """Convert bit-string asn.1 object to number"""
-    return int(bit.prettyPrint())
 
 
 # originally from https://pypi.python.org/pypi/PBKDF (Public Domain)
