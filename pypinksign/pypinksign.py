@@ -237,14 +237,10 @@ class PinkSign:
         print p.cert_type_oid()  # "1.2.410.200005.1.1.4"
         """
         if self.pub_cert is None:
-            raise ValueError("Public key should be loaded for fetch cert type.")
-        try:
-            for ext in self.pub_cert.extensions:
-                if ext.oid.dotted_string == '2.5.29.32':  #
-                    return ext.value[0].policy_identifier.dotted_string
-            pass
-        except Exception:
-            return ''
+            raise ValueError("Public key should be loaded before fetching cert type.")
+        for ext in self.pub_cert.extensions:
+            if ext.oid.dotted_string == '2.5.29.32':  #
+                return ext.value[0].policy_identifier.dotted_string
 
     def valid_date(self) -> (datetime, datetime):
         """Get valid date range
