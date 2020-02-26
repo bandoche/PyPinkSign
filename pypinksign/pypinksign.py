@@ -509,7 +509,7 @@ def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789
 
 
 def seed_generator(size: int) -> bytes:
-    """General function - get random size-bytes bytes for seed"""
+    """General function - get random size bytes without null(\x00) for seed"""
     return bytes([random.choice(range(255)) + 1 for _ in range(size)])
 
 

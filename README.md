@@ -71,6 +71,9 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.4.3 (2020-02-26)
+- Fix seed_generator to generate bytes 
+
 ### Ver. 0.4.2 (2020-02-26)
 - Test code fix
 
