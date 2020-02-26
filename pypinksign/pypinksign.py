@@ -94,7 +94,7 @@ class PinkSign:
                 self.load_prikey()
         return
 
-    def load_pubkey(self, pubkey_path: str = None, pubkey_data: bytes = None):
+    def load_pubkey(self, pubkey_path: str = None, pubkey_data: bytes = None) -> None:
         """Load public key file
         :param pubkey_path: (str) path for public key file
         :param pubkey_data: (bytes) raw data from public key file
@@ -117,7 +117,7 @@ class PinkSign:
         self.pubkey = self.pub_cert.public_key()  # cryptography.hazmat.backends.openssl.rsa._RSAPublicKey
         return
 
-    def load_prikey(self, prikey_path: str = None, prikey_data: bytes = None, prikey_password: str = None):
+    def load_prikey(self, prikey_path: str = None, prikey_data: bytes = None, prikey_password: str = None) -> None:
         """Load public key file
 
         p = PinkSign(pubkey_path='/my/cert/signCert.der')
@@ -163,7 +163,7 @@ class PinkSign:
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
 
-    def _load_prikey_with_decrypted_data(self, decrypted_prikey_data: bytes):
+    def _load_prikey_with_decrypted_data(self, decrypted_prikey_data: bytes) -> None:
         der_pri = der_decoder.decode(decrypted_prikey_data)
         der_pri2 = der_decoder.decode(der_pri[0][2])
 
@@ -182,7 +182,7 @@ class PinkSign:
             self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
         return
 
-    def load_p12(self, p12_data: bytes = None):
+    def load_p12(self, p12_data: bytes = None) -> None:
         """Load key information from P12(PKCS12, Usually pfx)"""
         if p12_data is None:
             p12_data = open(self.p12_path, 'rb').read()
@@ -192,7 +192,7 @@ class PinkSign:
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
 
-    def cn(self):
+    def cn(self) -> str:
         """Get cn value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -205,7 +205,7 @@ class PinkSign:
                 return dn.rfc4514_string()[3:]
         return ''
 
-    def issuer(self):
+    def issuer(self) -> str:
         """Get issuer value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -217,7 +217,7 @@ class PinkSign:
             if dn.rfc4514_string().startswith('O='):
                 return dn.rfc4514_string()[2:]
 
-    def cert_class(self):
+    def cert_class(self) -> str:
         """Get cert class
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -229,7 +229,7 @@ class PinkSign:
             if dn.rfc4514_string().startswith('CN='):
                 return dn.rfc4514_string()[3:]
 
-    def cert_type_oid(self):
+    def cert_type_oid(self) -> str:
         """Get cert type
         TODO: bad way to find value following oid. exception may occurred with certain certificate
 
@@ -252,7 +252,7 @@ class PinkSign:
             raise ValueError("Public key should be loaded before fetching valid date.")
         return self.pub_cert.not_valid_before, self.pub_cert.not_valid_after
 
-    def serialnum(self):
+    def serialnum(self) -> int:
         """Get serial number value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -263,22 +263,22 @@ class PinkSign:
             raise ValueError("Public key should be loaded before fetching serial number.")
         return self.pub_cert.serial_number
 
-    def sign(self, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
+    def sign(self, msg: bytes, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
         """Signing with private key - pkcs1 encode and decrypt
 
         p = PinkSign(pubkey_path="/path/signCert.der", prikey_path="/path/signPri.key", prikey_password="my-0wn-S3cret")
-        s = p.sign('my message')  # '\x00\x01\x02...'
+        s = p.sign(b'my message')  # '\x00\x01\x02...'
         """
         if self.prikey is None:
             raise ValueError("Private key is required for signing.")
         return self.prikey.sign(data=msg, padding=padding_, algorithm=algorithm)
 
-    def verify(self, signature, msg, algorithm=hashes.SHA256(), padding_=PKCS1v15()):
+    def verify(self, signature: bytes, msg: bytes, algorithm=hashes.SHA256(), padding_=PKCS1v15()) -> bool:
         """Verify with public key - encrypt and decode pkcs1 with hashed msg
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        s = p.sign('my message')  # '\x00\x01\x02...'
-        v = p.verify(s, 'my message')  # True
+        s = p.sign(b'my message')  # b'\x00\x01\x02...'
+        v = p.verify(s, b'my message')  # True
         """
         if self.pubkey is None:
             raise ValueError("Public key is required for verification.")
@@ -377,7 +377,12 @@ class PinkSign:
         iv = div[:16]
         return k, iv
 
-    def get_private_key_decryption_key_for_seed_cbc(self, der):
+    def get_private_key_decryption_key_for_seed_cbc(self, der: Sequence) -> (bytes, bytes):
+        """
+        (PBKDF1) get key, iv for decrypt private key encrypted with PBES1 (old style)
+        :param der: encrypted private key der
+        :return: tuple for key, iv
+        """
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
         iter_cnt = int(der[0][1][1])  # usually 2048
         dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
@@ -385,7 +390,12 @@ class PinkSign:
         iv = b"0123456789012345"
         return k, iv
 
-    def get_private_key_decryption_key_for_pbes2(self, der):
+    def get_private_key_decryption_key_for_pbes2(self, der: Sequence) -> (bytes, bytes):
+        """
+        (PBKDF2) get key, iv for decrypt private key encrypted with PBES2
+        :param der: encrypted private key der
+        :return: tuple for key, iv
+        """
         # https://github.com/bandoche/PyPinkSign/issues/7
         salt = der[0][1][0][1][0].asOctets()  # salt for pkcs#5
         iter_cnt = int(der[0][1][0][1][1])  # usually 2048
