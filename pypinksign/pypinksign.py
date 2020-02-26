@@ -37,24 +37,23 @@ ID_KISA_NPKI_RAND_NUM = (1, 2, 410, 200004, 10, 1, 1, 3)
 class PinkSign:
     """Main class for PinkSign"""
 
-
-    def __init__(self, pubkey_path=None, pubkey_data=None, prikey_path=None, prikey_data=None, prikey_password=None,
-                 p12_path=None, p12_data=None):
+    def __init__(self, pubkey_path: str = None, pubkey_data: bytes = None, prikey_path: str = None,
+                 prikey_data: bytes = None, prikey_password: bytes = None, p12_path: str = None, p12_data: bytes = None):
         """
         Initialize
         :param pubkey_path: path for public key file (e.g "/some/path/signCert.der")
         :param pubkey_data(bytes): raw payload for public key file (e.g "0\x82...")
         :param prikey_path: path for private key file (e.g "/some/path/signPri.key")
         :param prikey_data(bytes): raw payload for private key file (e.g "0\x82...")
-        :param prikey_password: passworkd for NPKI (e.g "h@ppy-chr1stm@s")
+        :param prikey_password: passworkd for NPKI (e.g b"h@ppy-chr1stm@s")
         :param p12_path: path for p12/pfx file (e.g "/some/path/p12file.pfx")
-        :param p12_data: raw payload for p12/pfx (e.g "0\x82..."
+        :param p12_data: raw payload for p12/pfx (e.g b"0\x82..."
 
         You can init like
         p = PinkSign()
         p = PinkSign(pubkey_path="/some/path/signCert.der")
         p = PinkSign(pubkey_path="/some/path/signCert.der", prikey_path="/some/path/signPri.key", prikey_password="my-0wn-S3cret")
-        p = PinkSign(pubkey_data="0\x82...")
+        p = PinkSign(pubkey_data=b"0\x82...")
         p = PinkSign(p12_path='/some/path/p12file.pfx', prikey_password="h@ppy-chr1stm@s")
         You can get help with choose_cert() function.
 
@@ -71,12 +70,16 @@ class PinkSign:
         self.pubkey_path = pubkey_path
         self.prikey_path = prikey_path
         self.prikey_data = prikey_data
+        if prikey_password:
+            if isinstance(prikey_password, str):
+                logging.warning(f"Please use bytes for passphrase")
+                prikey_password = str.encode(prikey_password)
         self.prikey_password = prikey_password
         self.p12_path = p12_path
         self.p12_data = p12_data
         self.pub_cert = None
-        self.prikey = None
-        self.pubkey = None
+        self.prikey: RSAPrivateKey = None
+        self.pubkey: RSAPublicKey = None
         self.rand_num = None
         if p12_path is not None:
             self.load_p12()
@@ -91,14 +94,14 @@ class PinkSign:
                 self.load_prikey()
         return
 
-    def load_pubkey(self, pubkey_path=None, pubkey_data=None):
+    def load_pubkey(self, pubkey_path: str = None, pubkey_data: bytes = None):
         """Load public key file
         :param pubkey_path: (str) path for public key file
         :param pubkey_data: (bytes) raw data from public key file
 
         p = PinkSign()
         p.load_pubkey('/my/cert/signCert.der')
-        p.load_pubkey(pubkey_data="0\x82...")
+        p.load_pubkey(pubkey_data=b"0\x82...")
 
         """
         if not any([self.pubkey_path, pubkey_path, pubkey_data]):
@@ -114,7 +117,7 @@ class PinkSign:
         self.pubkey = self.pub_cert.public_key()  # cryptography.hazmat.backends.openssl.rsa._RSAPublicKey
         return
 
-    def load_prikey(self, prikey_path=None, prikey_data=None, prikey_password=None):
+    def load_prikey(self, prikey_path: str = None, prikey_data: bytes = None, prikey_password: str = None):
         """Load public key file
 
         p = PinkSign(pubkey_path='/my/cert/signCert.der')
@@ -160,7 +163,7 @@ class PinkSign:
         self._load_prikey_with_decrypted_data(decrypted_prikey_data=prikey_data)
         return
 
-    def _load_prikey_with_decrypted_data(self, decrypted_prikey_data):
+    def _load_prikey_with_decrypted_data(self, decrypted_prikey_data: bytes):
         der_pri = der_decoder.decode(decrypted_prikey_data)
         der_pri2 = der_decoder.decode(der_pri[0][2])
 
@@ -179,7 +182,7 @@ class PinkSign:
             self._rand_num = der_pri[0][3][1][0]  # so raw data, can't be eaten
         return
 
-    def load_p12(self, p12_data=None):
+    def load_p12(self, p12_data: bytes = None):
         """Load key information from P12(PKCS12, Usually pfx)"""
         if p12_data is None:
             p12_data = open(self.p12_path, 'rb').read()
@@ -442,6 +445,13 @@ def url_encode(str):
 def paramize(param):
     """Make dict to param for get
     TODO: use urllib or else
+def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
+    """
+    Show console dialog listing certificates
+    :param base_path: (optional) where to find certificates (default: path from get_npki_path)
+    :param cn: (optional) filter CN field and automatically select cert if matched
+    :param pw: (optional) if filter dn, load certificate automatically with pw
+    :return: selected PinkSign object
     """
     params = []
     for k in param:
@@ -450,10 +460,9 @@ def paramize(param):
     return "&".join(params)
 
 
-def choose_cert(basepath=None, dn=None, pw=None):
     cert_list = []
-    if basepath is not None:
-        path = basepath
+    if base_path is not None:
+        path = base_path
     else:
         path = get_npki_path()
 
@@ -479,7 +488,7 @@ def choose_cert(basepath=None, dn=None, pw=None):
     return cert_list[i - 1]
 
 
-def seed_cbc_128_encrypt(key, plaintext, iv='0123456789012345'):
+def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345'):
     """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -490,7 +499,7 @@ def seed_cbc_128_encrypt(key, plaintext, iv='0123456789012345'):
     return encrypted_text
 
 
-def seed_cbc_128_decrypt(key, ciphertext, iv='0123456789012345'):
+def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345'):
     """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -501,7 +510,7 @@ def seed_cbc_128_decrypt(key, ciphertext, iv='0123456789012345'):
     return unpadded_text
 
 
-def seed_generator(size):
+def seed_generator(size: int):
     """General function - get random size-bytes string for seed"""
     return ''.join(chr(random.choice(range(255)) + 1) for _ in range(size))
 
@@ -519,7 +528,7 @@ def bit2int(bit):
 
 # originally from https://pypi.python.org/pypi/PBKDF (Public Domain)
 # modified for python2/3 compatibility
-def pbkdf1(password, salt, c=1200, dk_len=20):
+def pbkdf1(password: bytes, salt: bytes, c: int = 1200, dk_len: int = 20):
     """From PKCS#5 2.0 sect 5.1
     PBKDF1 (P, S, c, dkLen)
     Options: Hash underlying hash function
@@ -536,17 +545,16 @@ def pbkdf1(password, salt, c=1200, dk_len=20):
     assert dk_len <= dk_max_len, "derived key too long"
     assert len(salt) == 8, 'Salt should be 8 bytes'
 
-    password = str.encode(password)
     t = sha1(password + salt).digest()
     for _ in range(2, c + 1):
         t = sha1(t).digest()
     return t[:dk_len]
 
 
-def separate_p12_into_npki(p12_data, prikey_password) -> (str, str):
+def separate_p12_into_npki(p12_data: bytes, prikey_password: bytes) -> (bytes, bytes):
     """
     :param p12_data: (bytes) p12 file data
-    :param prikey_password: (str) p12 file password
+    :param prikey_password: (bytes) p12 file password
     :return: pubkey_data(bytes), prikey_data(bytes)
     """
     p12 = crypto.load_pkcs12(p12_data, prikey_password)
@@ -583,7 +591,7 @@ class NPKIPrivateKey(Sequence):
     )
 
 
-def encrypt_decrypted_prikey(prikey_b64, prikey_pw, salt_b64=None, iter_cnt=2048) -> str:
+def encrypt_decrypted_prikey(prikey_b64: str, prikey_pw: bytes, salt_b64: str = None, iter_cnt: int = 2048) -> str:
     """
     Encrypt decrypted NPKI private key file
     :param prikey_b64: decrypted NPKI private key in base64 form (e.g., "MII....")
@@ -682,7 +690,7 @@ class NPKIPlainPrivateKey(Sequence):
     )
 
 
-def inject_rand_in_plain_prikey(prikey_b64, rand_num) -> str:
+def inject_rand_in_plain_prikey(prikey_b64: str, rand_num: bytes) -> str:
     """
     Inject rand num for NPKI private key
     :param prikey_b64: decrypted NPKI private key in base64 form (e.g., "MII....")
