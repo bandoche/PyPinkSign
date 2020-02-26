@@ -458,8 +458,8 @@ def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
                     cert_path = "%s/%s" % (root, cert_dir)
                     cert = PinkSign(pubkey_path="%s/signCert.der" % cert_path)
                     cert.prikey_path = "%s/signPri.key" % cert_path
-                    if dn is not None:
-                        if cert.dn().find(dn) > 0:
+                    if cn is not None:
+                        if cn in cert.cn():
                             if pw is not None:
                                 cert.load_prikey(prikey_path="%s/signPri.key" % cert_path, prikey_password=pw)
                             return cert
