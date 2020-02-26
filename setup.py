@@ -33,7 +33,6 @@ setup(
     install_requires=[
         'pyasn1==0.4.8',
         'cryptography==2.8',
-        'bitarray==0.8.3',
         'pyOpenSSL==19.1.0',
     ],
     keywords='npki 공인인증서 korean pki certificate',
