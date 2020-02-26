@@ -368,7 +368,12 @@ class PinkSign:
     #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
     #     return der_encoder.encode(der)
 
-    def get_private_key_decryption_key_for_seed_cbc_with_sha1(self, der):
+    def get_private_key_decryption_key_for_seed_cbc_with_sha1(self, der: Sequence) -> (bytes, bytes):
+        """
+        (PBKDF1) get key, iv for decrypt private key encrypted with PBES1
+        :param der: encrypted private key der
+        :return: tuple for key, iv
+        """
         salt = der[0][1][0].asOctets()  # salt for pbkdf#5
         iter_cnt = int(der[0][1][1])  # usually 2048
         dk = pbkdf1(self.prikey_password, salt, iter_cnt, 20)
