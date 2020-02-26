@@ -516,8 +516,10 @@ def pbkdf1(password: bytes, salt: bytes, c: int = 1200, dk_len: int = 20):
     # password, salt = checkTypes(password, salt, c, dkLen)
     dk_max_len = hashlib.sha1().digest_size
 
-    assert dk_len <= dk_max_len, "derived key too long"
-    assert len(salt) == 8, 'Salt should be 8 bytes'
+    if dk_len > dk_max_len:
+        raise ValueError("derived key too long")
+    if len(salt) != 8:
+        raise ValueError('Salt should be 8 bytes')
 
     t = sha1(password + salt).digest()
     for _ in range(2, c + 1):
