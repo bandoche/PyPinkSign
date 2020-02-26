@@ -60,11 +60,7 @@ envelop = p.envelop_with_sign_msg(b'message')  # Envelop with K-PKI - Temporary 
 
 ## Installation
 
-The easiest way to get PyPinkSign is if you have setuptools / distribute *or* pip installed
-
-	easy_install pypinksign
-
-or
+The easiest way to get PyPinkSign is pip
 
 	pip install pypinksign
 
