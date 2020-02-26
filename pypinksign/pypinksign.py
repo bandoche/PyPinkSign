@@ -406,7 +406,7 @@ class PinkSign:
             iterations=iter_cnt,
             backend=default_backend(),
         )
-        k = kdf.derive(self.prikey_password.encode())
+        k = kdf.derive(self.prikey_password)
         iv = der[0][1][1][1].asOctets()
         return k, iv
 
