@@ -6,7 +6,7 @@ from setuptools import setup
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.4'
+VERSION = '0.4.1'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
@@ -14,9 +14,6 @@ DESC = "Basic NPKI module."
 LONG_DESC = "See https://github.com/bandoche/PyPinkSign"  # read_file('README.rst')
 
 EXTRAS = {}
-
-if sys.version_info > (3,):
-    EXTRAS['use_2to3'] = True
 
 setup(
     name=PROJECT,
