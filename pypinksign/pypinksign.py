@@ -624,7 +624,7 @@ class Version(Integer):
     pass
 
 
-class RSAPrivateKey(Sequence):
+class SeqRSAPrivateKey(Sequence):
     componentType = NamedTypes(
         NamedType('version', Version()),
         NamedType('modulus', Integer()),
@@ -638,29 +638,29 @@ class RSAPrivateKey(Sequence):
     )
 
 
-class RSAPrivateKeyOctet(Sequence):
+class SeqRSAPrivateKeyOctet(Sequence):
     componentType = NamedTypes(
-        NamedType('key', RSAPrivateKey())
+        NamedType('key', SeqRSAPrivateKey())
     )
 
 
-class NPKIPrivateKeyRandomNumberSet(Set):
+class SeqNPKIPrivateKeyRandomNumberSet(Set):
     componentType = NamedTypes(
         NamedType('rand', BitString())
     )
 
 
-class NPKIPrivateKeyRandomNumber(Sequence):
+class SeqNPKIPrivateKeyRandomNumber(Sequence):
     componentType = NamedTypes(
         NamedType('oid', ObjectIdentifier()),
-        NamedType('rand_set', NPKIPrivateKeyRandomNumberSet()),
+        NamedType('rand_set', SeqNPKIPrivateKeyRandomNumberSet()),
 
     )
 
 
-class NPKIPrivateKeyRandomNumberSeqSet(Set):
+class SeqNPKIPrivateKeyRandomNumberSeqSet(Set):
     componentType = NamedTypes(
-        NamedType('rand_seq', NPKIPrivateKeyRandomNumber())
+        NamedType('rand_seq', SeqNPKIPrivateKeyRandomNumber())
     )
 
 
@@ -676,8 +676,8 @@ class NPKIPlainPrivateKey(Sequence):
         NamedType('version', Integer()),
         NamedType('info', NPKIPlainPrivateKeyInfo()),
         NamedType('private_key_octet',
-                  RSAPrivateKeyOctet().subtype(implicitTag=tag.Tag(tag.tagClassUniversal, tag.tagFormatSimple, 4))),
-        NamedType('rand', NPKIPrivateKeyRandomNumberSeqSet().subtype(
+                  SeqRSAPrivateKeyOctet().subtype(implicitTag=tag.Tag(tag.tagClassUniversal, tag.tagFormatSimple, 4))),
+        NamedType('rand', SeqNPKIPrivateKeyRandomNumberSeqSet().subtype(
             implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
     )
 
@@ -690,12 +690,12 @@ def inject_rand_in_plain_prikey(prikey_b64, rand_num) -> str:
     :return: base64 encoded private key without encryption
     """
     private_key, rest_of_input = der_decoder.decode(base64.b64decode(prikey_b64))
-    rand_num_set = NPKIPrivateKeyRandomNumberSet()
+    rand_num_set = SeqNPKIPrivateKeyRandomNumberSet()
     rand_num_set['rand'] = BitString(hexValue=rand_num.hex())
-    rand_num_seq = NPKIPrivateKeyRandomNumber()
+    rand_num_seq = SeqNPKIPrivateKeyRandomNumber()
     rand_num_seq['oid'] = ID_KISA_NPKI_RAND_NUM
     rand_num_seq['rand_set'] = rand_num_set
-    rand_num_seqset = NPKIPrivateKeyRandomNumberSeqSet().subtype(
+    rand_num_seqset = SeqNPKIPrivateKeyRandomNumberSeqSet().subtype(
         implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0))
     rand_num_seqset['rand_seq'] = rand_num_seq
     prikey_plain = NPKIPlainPrivateKey()
