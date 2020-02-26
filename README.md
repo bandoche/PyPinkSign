@@ -71,6 +71,9 @@ The current development version can be found at
 
 ## History
 
+## Ver. 0.4.2 (2020-02-26)
+- Test code fix
+
 ## Ver. 0.4.1 (2020-02-26)
 - Add PKCS7 sign message.
 
