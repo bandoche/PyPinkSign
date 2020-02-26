@@ -6,7 +6,8 @@ from unittest import TestCase
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers
 from pyasn1.codec.der import decoder as der_decoder
 
-from pypinksign import PinkSign
+from pypinksign import PinkSign, seed_cbc_128_encrypt, seed_cbc_128_decrypt, seed_generator, separate_p12_into_npki, \
+    encrypt_decrypted_prikey, inject_rand_in_plain_prikey
 
 # Test certificate data
 
@@ -53,6 +54,45 @@ TEST_CERT = {
                '/DYQXaKNYuPnw5i4lkV6XF+asyqkrFVrzLGM4VvQ0HeR91RUwTbPo+wQHWrFEjAE/Kk75YCdg/H27ArsWfi/QXCm72hex4'
                '/XAIkydoEgznMs3kTnU8XdGvtrXYrid1svzBAGqxLYaRj292o8oVxz+rpMCL8TZA3gQJ47HcyngTZUvuau1KpaOVrE2Eo/LHIRQk'
                '/0U0Ew==',
+    'plainSignPri': 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCBCxbSkEILq0Efw8SobRjrqK'
+                    '+b47cVLvRPGpJYmeFPzptpmemNgxrSFhEZsZ3JhzVWii'
+                    '/PV9B9mvIVQjyZBvUHNef8dVc9sbW7nRRkudygUAi9GFFhe2BLNGCJ12NI3ZLmAzUMzeLZ7gFEyLYTRU5QGRI0GPONp5tOVFgN'
+                    'ko1bIW9bwe9/jKUWaIf5y983UhLhUQFC51cPKxnvf2aU1JKHTTrj/X1plAYgEY/x339YDtjLc6Ay686hBvTTB6ZWq4uRrSk'
+                    '/Ggj/XAIkcqesqeXerFGOMsfD/60qkYvzjk8UXRbeXOMQRd3dyWr7lTqy1hM8C'
+                    '/UtQl4BCswSCBaRYnuDAgMBAAECggEARKrb+CxfmMoGm5qXOXDkg/J9kBy6vgEAbF'
+                    '+dZJxt8wPkW2tVhsIvMYAglWWYqzbRwT1Dd7go783V6E4Y5O140d9zlTnztJauOCm8QmVM69nq7ITWOWNnuF0kyfTdllah5tfq'
+                    'EOg2QPWPo0SS7upAZAsTTrnAUK7Ry/rB6GcF5Wm5wAp1nWZTr6q+QqcA/w60wIPyuvkhR/H3LMdW/is2rk0y7uQ2MOWXLtJAds'
+                    '4MOQt1YypjgzWuPuNr9I28r1NmKAQXrxlfJq/AC9MvuiEP/jZL1srcBJpl4ZXmv+ligEGEhxL1htJ/jVk9zaoXFpUuxLhtTzJ1'
+                    'wIecAYcdRktWAQKBgQDyqL1572xla7XlGu4j/5VgCNddEuu+iVdhfL1JmzVLqjPeUnv3UJzQn10GmL8kjW6slrC8qJ1LoppB0q'
+                    'sE+LbBO/5yxDo0sf4mBm7sy2gF3c6leyA3Edy4d59JYLFQIRk'
+                    '+DWKZAWixiFu1CWtcixlHeP73tgrrfh1PdDgyEtazgQKBgQCII0jkUhjt67B2weAvicdyYpuIGFjDIpJKtr6A07pX1sWyoVa79'
+                    'J2138WHNiqJOIh9BdOP2+04ze8ueO2OZ86Mjz8bWOiQG0gce9WiNJkU72wYpnvLtFXw3gXyBKDuYKf7se4ksgh7Cr0C5jpzyIq'
+                    'IEQtcOOzMy4CtxrTQahrhAwKBgG9g9j8+nvFaZA35s27AhE6lIDzvT1eQcJQljjh3zhmh0Nbt40qcLK4xR6CcgbeEV1VOgWbGu'
+                    'hQaWVV3HdpVUoUVRXBmExVW0YGgmE+F+YQf0BbykdHVGAtvlKQ4hopx9sUdnbD/DY/XN8i7vxSmH/9HUThfzVlT9J4giR6quPO'
+                    'BAoGAQSUpX2DN3yRWuC2EWxtCXsFDDfggmZg0ix4xwTIQTLJQvm8oMx8WTQ781fwclLeB0Nn16DRkqzcYipOBkhCorWhq2WpN'
+                    'N5BmjILRsyIaUwNTJeSc/tiX+4AzNiHy5L9KA06c1+B94Gs+EWIcfIVtjTkix4nR/xouxHl'
+                    '+0vDDVgMCgYEAn9cB4gLY1h6LNdpl1ALLkrTEitqK2TW0n9y8BiI3QE1qfof6lvYjM44mo496jHNxi9KFIsr2VtLHFeGz6nilb'
+                    'UAiDdxkhv5twQBuogELbUQOqAs44r9hyABHVHvQMm2XtG8Q6AQGYG25lgI8/MdG2/sgukP+C5hGDGqcy23LwpE=',
+    'plainSignPriFullB64': 'MIIE5gIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCBCxbSkEILq0Efw8SobRjrqK+b47cVLvRPGpJYmeF'
+                           'PzptpmemNgxrSFhEZsZ3JhzVWii/PV9B9mvIVQjyZBvUHNef8dVc9sbW7nRRkudygUAi9GFFhe2BLNGCJ12NI3ZLmAz'
+                           'UMzeLZ7gFEyLYTRU5QGRI0GPONp5tOVFgNko1bIW9bwe9/jKUWaIf5y983UhLhUQFC51cPKxnvf2aU1JKHTTrj/X1pl'
+                           'AYgEY/x339YDtjLc6Ay686hBvTTB6ZWq4uRrSk/Ggj/XAIkcqesqeXerFGOMsfD/60qkYvzjk8UXRbeXOMQRd3dyWr7'
+                           'lTqy1hM8C/UtQl4BCswSCBaRYnuDAgMBAAECggEARKrb+CxfmMoGm5qXOXDkg/J9kBy6vgEAbF+dZJxt8wPkW2tVhsI'
+                           'vMYAglWWYqzbRwT1Dd7go783V6E4Y5O140d9zlTnztJauOCm8QmVM69nq7ITWOWNnuF0kyfTdllah5tfqEOg2QPWPo0'
+                           'SS7upAZAsTTrnAUK7Ry/rB6GcF5Wm5wAp1nWZTr6q+QqcA/w60wIPyuvkhR/H3LMdW/is2rk0y7uQ2MOWXLtJAds4MO'
+                           'Qt1YypjgzWuPuNr9I28r1NmKAQXrxlfJq/AC9MvuiEP/jZL1srcBJpl4ZXmv+ligEGEhxL1htJ/jVk9zaoXFpUuxLht'
+                           'TzJ1wIecAYcdRktWAQKBgQDyqL1572xla7XlGu4j/5VgCNddEuu+iVdhfL1JmzVLqjPeUnv3UJzQn10GmL8kjW6slrC'
+                           '8qJ1LoppB0qsE+LbBO/5yxDo0sf4mBm7sy2gF3c6leyA3Edy4d59JYLFQIRk+DWKZAWixiFu1CWtcixlHeP73tgrrfh'
+                           '1PdDgyEtazgQKBgQCII0jkUhjt67B2weAvicdyYpuIGFjDIpJKtr6A07pX1sWyoVa79J2138WHNiqJOIh9BdOP2+04z'
+                           'e8ueO2OZ86Mjz8bWOiQG0gce9WiNJkU72wYpnvLtFXw3gXyBKDuYKf7se4ksgh7Cr0C5jpzyIqIEQtcOOzMy4CtxrTQ'
+                           'ahrhAwKBgG9g9j8+nvFaZA35s27AhE6lIDzvT1eQcJQljjh3zhmh0Nbt40qcLK4xR6CcgbeEV1VOgWbGuhQaWVV3Hdp'
+                           'VUoUVRXBmExVW0YGgmE+F+YQf0BbykdHVGAtvlKQ4hopx9sUdnbD/DY/XN8i7vxSmH/9HUThfzVlT9J4giR6quPOBAo'
+                           'GAQSUpX2DN3yRWuC2EWxtCXsFDDfggmZg0ix4xwTIQTLJQvm8oMx8WTQ781fwclLeB0Nn16DRkqzcYipOBkhCorWhq2'
+                           'WpNN5BmjILRsyIaUwNTJeSc/tiX+4AzNiHy5L9KA06c1+B94Gs+EWIcfIVtjTkix4nR/xouxHl+0vDDVgMCgYEAn9cB'
+                           '4gLY1h6LNdpl1ALLkrTEitqK2TW0n9y8BiI3QE1qfof6lvYjM44mo496jHNxi9KFIsr2VtLHFeGz6nilbUAiDdxkhv5'
+                           'twQBuogELbUQOqAs44r9hyABHVHvQMm2XtG8Q6AQGYG25lgI8/MdG2/sgukP+C5hGDGqcy23LwpGgJzAlBgoqgxqMmk'
+                           'QKAQEDMRcDFQB4WLQyg5CAUSnwHJf+bKSlIMvUeQ==',
+    'signPriSalt': 'yOovolAjwoU=',
     'signPw': b'WTuA8Ev0lWXVFSiI!',
     'pfx': 'MIILygIBAzCCC5AGCSqGSIb3DQEHAaCCC4EEggt9MIILeTCCC3UGCSqGSIb3DQEHAaCCC2YEggtiMIILXjCCBggGCyqGSIb3DQEMCgEDoII'
            'F0DCCBcwGCiqGSIb3DQEJFgGgggW8BIIFuDCCBbQwggScoAMCAQICA0WcdTANBgkqhkiG9w0BAQsFADBXMQswCQYDVQQGEwJrcjEQMA4GA1'
@@ -103,7 +143,7 @@ TEST_CERT = {
     'notValidBefore': datetime.datetime(2020, 2, 24, 15, 0),
     'notValidAfter': datetime.datetime(2020, 3, 25, 14, 59, 59),
     'serialnum': 4562037,
-    'r': '',
+    'r': bytes.fromhex('78 58 B4 32 83 90 80 51 29 F0 1C 97 FE 6C A4 A5 20 CB D4 79'.replace(' ', '')),
     'n': 16290209604510558512424059741651375064654753567992722580828628971708562130349008444810203521124558177825814339343207835427689025822285584732821780446150030117526628261085286225778211374294648916395223865257683288643551550943391795793773752999484548197810621853518105898239621319606067171572461184051376253498427234926384321524162077496373015541984328411287155862092598397499222651575268924929909579288769213787457173333761144872762255105990945866750105589086207927132458172404823977276816345606547939329781107327373658261705552620519785541773479297095905819124179278019444174466369977583873333772287403026516394802051,
     'p': 170401043831697500886160249453602583335155029958192979892846760308792096042785207717320177143506192175989057818875274069078126428428664188191002040247312453076759639094986555140352677217431824482125801965793292922161731900555514681105243113154959058263263456989915155467472762129413377977445986545324277543809,
     'q': 95599236003507988162256917245689855045632483977786697851995594997401446652676983578811144407419929034577038823467981696549011583201801033558606302793999799945569038528599429915741121712483113541005448714575076774872507683991561353700970060867945659335299477867471142542568350398654542405553691414296004321539,
@@ -194,6 +234,12 @@ TEST_CERT = {
                     b'\x8e\x0bX\xf5\xc0c7<\xd9f\xef]-\xb7\xc4LwC\xc2\xf6\x06&;\xc9\xe4\xb2;\x98'
                     b'\xeePD\xd7\x88\xa2"V\xf2\x05\xbcc\xd3\x8f\x00]\xb41\xa0\x05\x11\xb4\xa5z'
                     b'Jz\x18\x1a>'
+}
+TEST_DATA = {
+    'plaintext': b'TEST_MSG',
+    'iv': b'0123456789abcdef',
+    'key': b'abcdefghijklmnop',
+    'seedCiphertext': b'\xcb*\x82{\xd9\x81=\xba\x84\x91\xd3\xa2B\xac\xa09',
 }
 
 
@@ -324,6 +370,30 @@ class TestPinkSign(TestCase):
         expected = TEST_CERT['pkcs7SignMsg']
         self.c.load_prikey()
         self.assertEqual(expected, self.c.pkcs7_signed_msg(TEST_CERT['testMsg']))
+
+    def test_seed_cbc_128_encrypt(self):
+        expected = TEST_DATA['seedCiphertext']
+        self.assertEqual(expected, seed_cbc_128_encrypt(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv']))
+
+    def test_seed_cbc_128_decrypt(self):
+        expected = TEST_DATA['plaintext']
+        self.assertEqual(expected, seed_cbc_128_decrypt(TEST_DATA['key'], TEST_DATA['seedCiphertext'], TEST_DATA['iv']))
+
+    def test_seed_generator(self):
+        self.assertEqual(16, len(seed_generator(16)))
+        self.assertIsInstance(seed_generator(16), bytes)
+
+    def test_separate_p12_into_npki(self):
+        expected = tuple((base64.b64decode(TEST_CERT['signCert']), base64.b64decode(TEST_CERT['plainSignPri'])))
+        self.assertEqual(expected, separate_p12_into_npki(base64.b64decode(TEST_CERT['pfx']), TEST_CERT['signPw']))
+
+    def test_inject_rand_in_plain_prikey(self):
+        expected = TEST_CERT['plainSignPriFullB64']
+        self.assertEqual(expected, inject_rand_in_plain_prikey(TEST_CERT['plainSignPri'], TEST_CERT['r']))
+
+    def test_encrypt_decrypted_prikey(self):
+        expected = TEST_CERT['signPri']
+        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'], TEST_CERT['signPriSalt']))
 
 
 if __name__ == '__main__':
