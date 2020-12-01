@@ -1,11 +1,11 @@
 # PyPinkSign
-Small python code for K-PKI certificates. 공인인증서를 다루는 파이선 코드입니다.
+Python code for PKI certificate. 공인인증서(공동인증서)를 다루는 파이썬 코드입니다.
 
 ## Status
 [![Build Status](https://travis-ci.org/bandoche/PyPinkSign.svg)](https://travis-ci.org/bandoche/PyPinkSign) [![codecov](https://codecov.io/gh/bandoche/PyPinkSign/branch/master/graph/badge.svg)](https://codecov.io/gh/bandoche/PyPinkSign)
 
 ## Support method
-- Load personal purpose of [NPKI](http://www.nsic.go.kr/ndsi/help/pki.do?menuId=MN050503) a.k.a "[공인인증서](http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp)"
+- Load personal purpose of PKI a.k.a "NPKI" or "[공인인증서](http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp)"
 - Encrypt, Decrypt, Sign, Verify (part of Public-key cryptography)
 - Get Details (Valid date, Serial number, CN)
 - PKCS#7 sign, envelop (WIP)
@@ -55,8 +55,7 @@ envelop = p.pkcs7_enveloped_msg(b'message')  # Envelop with K-PKI - Temporary re
 - Python 3.6 or above
 - [PyASN1](http://pyasn1.sourceforge.net) for pyasn1
 - [cryptography](https://cryptography.io/en/latest/) for cryptography.hazmat
-- [PyOpenSSL](https://github.com/pyca/pyopenssl) for from OpenSSL.crypto
-- OpenSSL 1.0.x for SEED cipher. SEED dropped from OpenSSL 1.1 default cipher suite. 
+- OpenSSL 1.1.1 or above due to cryptography package
 
 ## Installation
 
@@ -70,6 +69,10 @@ The current development version can be found at
 
 
 ## History
+
+### Ver. 0.4.4 (TBD)
+- Fix CRT related param error
+- Remove PyOpenSSL dependency 
 
 ### Ver. 0.4.3 (2020-02-26)
 - Fix seed_generator to generate bytes 
