@@ -173,8 +173,8 @@ class PinkSign:
         (n, e, d, p, q) = (der_pri2[0][1], der_pri2[0][2], der_pri2[0][3], der_pri2[0][4], der_pri2[0][5])
         (n, e, d, p, q) = (int(n), int(e), int(d), int(p), int(q))
         iqmp = rsa_crt_iqmp(p, q)
-        dmp1 = rsa_crt_dmp1(e, p)
-        dmq1 = rsa_crt_dmq1(e, q)
+        dmp1 = rsa_crt_dmp1(d, p)
+        dmq1 = rsa_crt_dmq1(d, q)
         pn = RSAPublicNumbers(n=n, e=e)
 
         self.prikey = RSAPrivateNumbers(p=p, q=q, d=d, dmp1=dmp1, dmq1=dmq1, iqmp=iqmp,
