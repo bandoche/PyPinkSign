@@ -9,16 +9,16 @@ from hashlib import sha1
 from os.path import expanduser
 from sys import platform as _platform
 
-from OpenSSL import crypto
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding, hashes
+from cryptography.hazmat.primitives import padding, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1, RSAPublicKey, RSAPrivateKey
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.serialization import pkcs12
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.codec.der.encoder import encode
@@ -546,15 +546,18 @@ def separate_p12_into_npki(p12_data: bytes, prikey_password: bytes) -> (bytes, b
     :param prikey_password: (bytes) p12 file password
     :return: pubkey_data(bytes), prikey_data(bytes)
     """
-    p12 = crypto.load_pkcs12(p12_data, prikey_password)
-    prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-    prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
-                                                                                     b'')
+    (private_key, certificate, additional_certificates) = pkcs12.load_key_and_certificates(
+        data=p12_data, password=prikey_password)
+
+    prikey_data = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption())
+
+    prikey_data = b''.join(prikey_data.split(b'\n')[1:-2])
     prikey_data = base64.b64decode(prikey_data)
 
-    pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
-    pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----',
-                                                                                     b'')
+    pubkey_data = b''.join(certificate.public_bytes(serialization.Encoding.PEM).split(b'\n')[1:-2])
     pubkey_data = base64.b64decode(pubkey_data)
     return pubkey_data, prikey_data
 
