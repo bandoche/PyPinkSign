@@ -39,7 +39,8 @@ class PinkSign:
     """Main class for PinkSign"""
 
     def __init__(self, pubkey_path: str = None, pubkey_data: bytes = None, prikey_path: str = None,
-                 prikey_data: bytes = None, prikey_password: bytes = None, p12_path: str = None, p12_data: bytes = None):
+                 prikey_data: bytes = None, prikey_password: bytes = None, p12_path: str = None,
+                 p12_data: bytes = None):
         """
         Initialize
         :param pubkey_path: path for public key file (e.g "/some/path/signCert.der")
@@ -330,9 +331,21 @@ class PinkSign:
 
         data = Sequence()
         data = data.setComponentByPosition(0, Integer(1))
-        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
-        data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.hex()))))
-        data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
+        data = data.setComponentByPosition(
+            1, Set().setComponentByPosition(
+                0, Sequence().setComponentByPosition(
+                    0, oi_sha256).setComponentByPosition(
+                    1, Null(''))))
+        data = data.setComponentByPosition(
+            2, Sequence().setComponentByPosition(0, oi_pkcs7_data).
+                setComponentByPosition(
+                1,
+                Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext,
+                                                       tag.tagFormatSimple,
+                                                       0)).
+                    setComponentByPosition(0, OctetString(hexValue=msg.hex()))))
+        data = data.setComponentByPosition(3, Sequence().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
 
         data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
         data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
@@ -340,9 +353,17 @@ class PinkSign:
         data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
         data4004 = OctetString(hexValue=signed.hex())
 
-        data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
+        data = data.setComponentByPosition(
+            4, Set().setComponentByPosition(
+                0, Sequence().setComponentByPosition(
+                    0, Integer(1)).setComponentByPosition(
+                    1, data4001).setComponentByPosition(
+                    2, data4002).setComponentByPosition(
+                    3, data4003).setComponentByPosition(
+                    4, data4004)))
 
-        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+        der = der.setComponentByPosition(1, Sequence().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
 
         return der_encoder.encode(der)
 
