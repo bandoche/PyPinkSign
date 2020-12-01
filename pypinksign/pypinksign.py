@@ -346,30 +346,6 @@ class PinkSign:
 
         return der_encoder.encode(der)
 
-    # def pkcs7_enveloped_msg(self, msg, data, iv=b"0123456789012345"):
-    #     """WIP: PKCS#7 envelop msg, data with cert"""
-    #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-    #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-    #     oi_seed_cbc = ObjectIdentifier(id_seed_cbc)
-    #
-    #     der = Sequence().setComponentByPosition(0, ObjectIdentifier(id_pkcs7_enveloped_data))
-    #
-    #     data_set = Sequence().setComponentByPosition(0, Integer(0))
-    #     data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
-    #     data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
-    #     data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.hex()))
-    #
-    #     data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
-    #     data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.hex())))
-    #     data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.hex()).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
-    #
-    #     data = Sequence().setComponentByPosition(0, Integer(0))
-    #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))
-    #     data = data.setComponentByPosition(2, data_seq)
-    #
-    #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-    #     return der_encoder.encode(der)
-
     def get_private_key_decryption_key_for_seed_cbc_with_sha1(self, der: Sequence) -> (bytes, bytes):
         """
         (PBKDF1) get key, iv for decrypt private key encrypted with PBES1
