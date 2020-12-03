@@ -64,7 +64,7 @@ The easiest way to get PyPinkSign is pip
 	pip install pypinksign
 
 The current development version can be found at 
-[http://github.com/bandoche/pypinksign/tarball/master](http://github.com/bandoche/pypinksign/tarball/master)
+[http://github.com/bandoche/pypinksign/tarball/main](http://github.com/bandoche/pypinksign/tarball/main)
 
 
 
