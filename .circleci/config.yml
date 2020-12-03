@@ -16,6 +16,9 @@ jobs:
       - run:
           command: coverage run pypinksign/test_pinkSign.py
           name: Test
+      - run:
+          command: codecov
+          name: Send coverage
   build-and-test-38:
     <<: *template
     docker:
