@@ -70,6 +70,9 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.4.5 (2020-12-03)
+- Fix import path issue (thanks to [Gyong1211](https://github.com/Gyong1211))
+
 ### Ver. 0.4.4 (2020-12-03)
 - Fix CRT related param error
 - Remove PyOpenSSL dependency
@@ -126,6 +129,7 @@ The current development version can be found at
 - [item4](https://github.com/item4)
 - [peio](https://github.com/peio) for [PBKDF1](https://github.com/peio/PBKDF/) code.
 - [youngminz](https://github.com/youngminz) for PBES2 support.
+- [Gyong1211](https://github.com/Gyong1211) for v0.4.5
 
 ## See also
 - [rootca.or.kr](http://rootca.or.kr/kor/standard/standard01A.jsp) - Technical Specification for K-PKI System
