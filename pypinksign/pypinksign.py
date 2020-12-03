@@ -10,7 +10,7 @@ from os.path import expanduser
 from sys import platform as _platform
 
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
@@ -25,6 +25,8 @@ from pyasn1.codec.der.encoder import encode
 from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
+
+from pypinkseed import process_block
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
@@ -483,7 +485,22 @@ def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
     return cert_list[i - 1]
 
 
-def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345'):
+
+def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    try:
+        return seed_cbc_128_encrypt_openssl(key, plaintext, iv)
+    except UnsupportedAlgorithm as e:
+        return seed_cbc_128_encrypt_pure(key, plaintext, iv)
+
+
+def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    try:
+        return seed_cbc_128_decrypt_openssl(key, ciphertext, iv)
+    except UnsupportedAlgorithm as e:
+        return seed_cbc_128_decrypt_pure(key, ciphertext, iv)
+
+
+def seed_cbc_128_encrypt_openssl(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -494,7 +511,28 @@ def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'01234567890
     return encrypted_text
 
 
-def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345'):
+def byte_xor(ba1, ba2):
+    return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+
+def seed_cbc_128_encrypt_pure(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
+    padder = padding.PKCS7(128).padder()
+    padded_text = padder.update(plaintext) + padder.finalize()
+
+    n = 16
+    chunks = [padded_text[i:i + n] for i in range(0, len(padded_text), n)]
+    vector = iv
+    result = b''
+    for ch in chunks:
+        new_ch = byte_xor(ch, vector)
+        result_ba = process_block(True, key, new_ch)
+        vector = result_ba
+        result += result_ba
+    return result
+
+
+def seed_cbc_128_decrypt_openssl(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -502,6 +540,21 @@ def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789
     decrypted_text = decryptor.update(ciphertext)
     unpadder = padding.PKCS7(128).unpadder()
     unpadded_text = unpadder.update(decrypted_text) + unpadder.finalize()
+    return unpadded_text
+
+
+def seed_cbc_128_decrypt_pure(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
+    n = 16
+    chunks = [ciphertext[i:i + n] for i in range(0, len(ciphertext), n)]
+    vector = iv
+    result = b''
+    for ch in chunks:
+        dec = process_block(False, key, ch)
+        result += byte_xor(dec, vector)
+        vector = ch
+    unpadder = padding.PKCS7(128).unpadder()
+    unpadded_text = unpadder.update(result) + unpadder.finalize()
     return unpadded_text
 
 
