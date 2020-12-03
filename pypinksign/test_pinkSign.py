@@ -1,3 +1,4 @@
+# coding=utf-8
 import base64
 import datetime
 import unittest
@@ -7,7 +8,9 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from pyasn1.codec.der import decoder as der_decoder
 
 from pypinksign import PinkSign, seed_cbc_128_encrypt, seed_cbc_128_decrypt, seed_generator, separate_p12_into_npki, \
-    encrypt_decrypted_prikey, inject_rand_in_plain_prikey
+    encrypt_decrypted_prikey, inject_rand_in_plain_prikey, seed_cbc_128_decrypt_pure, seed_cbc_128_encrypt_pure, \
+    seed_cbc_128_encrypt_openssl, seed_cbc_128_decrypt_openssl
+from pypinkseed import set_key, process_block
 
 # Test certificate data
 
@@ -384,9 +387,41 @@ class TestPinkSign(TestCase):
         expected = TEST_DATA['seedCiphertext']
         self.assertEqual(expected, seed_cbc_128_encrypt(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv']))
 
+    def test_seed_cbc_128_encrypt_openssl(self):
+        expected = TEST_DATA['seedCiphertext']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_openssl(
+                             TEST_DATA['key'],
+                             TEST_DATA['plaintext'],
+                             TEST_DATA['iv']))
+
+    def test_seed_cbc_128_encrypt_pure(self):
+        expected = TEST_DATA['seedCiphertext']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_pure(
+                             TEST_DATA['key'],
+                             TEST_DATA['plaintext'],
+                             TEST_DATA['iv']))
+
     def test_seed_cbc_128_decrypt(self):
         expected = TEST_DATA['plaintext']
         self.assertEqual(expected, seed_cbc_128_decrypt(TEST_DATA['key'], TEST_DATA['seedCiphertext'], TEST_DATA['iv']))
+
+    def test_seed_cbc_128_decrypt_openssl(self):
+        expected = TEST_DATA['plaintext']
+        self.assertEqual(expected,
+                         seed_cbc_128_decrypt_openssl(
+                             TEST_DATA['key'],
+                             TEST_DATA['seedCiphertext'],
+                             TEST_DATA['iv']))
+
+    def test_seed_cbc_128_decrypt_pure(self):
+        expected = TEST_DATA['plaintext']
+        self.assertEqual(expected,
+                         seed_cbc_128_decrypt_pure(
+                             TEST_DATA['key'],
+                             TEST_DATA['seedCiphertext'],
+                             TEST_DATA['iv']))
 
     def test_seed_generator(self):
         self.assertEqual(16, len(seed_generator(16)))
@@ -402,7 +437,40 @@ class TestPinkSign(TestCase):
 
     def test_encrypt_decrypted_prikey(self):
         expected = TEST_CERT['signPri']
-        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'], TEST_CERT['signPriSalt']))
+        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'],
+                                                            TEST_CERT['signPriSalt']))
+
+    def test_set_key(self):
+        expected = TEST_DATA['seed_key']
+        self.assertEqual(expected, set_key(bytes(16)), expected)
+
+    def test_process_block(self):
+        expected = bytearray(TEST_DATA['seed_block_cipher'])
+        self.assertEqual(expected, process_block(True, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_plain']),
+                         expected)
+
+        expected = bytearray(TEST_DATA['seed_block_plain'])
+        self.assertEqual(expected, process_block(False, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_cipher']),
+                         expected)
+
+    def test_process_block_openssl(self):
+        expected = TEST_DATA['seed_block_cipher']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_openssl(
+                             TEST_DATA['seed_block_key'],
+                             TEST_DATA['seed_block_plain'],
+                             bytes(16))[:16], expected)
+
+    def test_pure_vs_openssl(self):
+        for i in range(100):
+            random_bytes = seed_generator(128)
+            key = seed_generator(16)
+            iv = seed_generator(16)
+            enc = seed_cbc_128_encrypt_pure(key, random_bytes, iv)
+            self.assertEqual(enc, seed_cbc_128_encrypt_openssl(key, random_bytes, iv))
+            dec = seed_cbc_128_decrypt_pure(key, enc, iv)
+            self.assertEqual(dec, seed_cbc_128_decrypt_openssl(key, enc, iv))
+            self.assertEqual(dec, random_bytes)
 
 
 if __name__ == '__main__':
