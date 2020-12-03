@@ -70,9 +70,11 @@ The current development version can be found at
 
 ## History
 
-### Ver. 0.4.4 (TBD)
+### Ver. 0.4.4 (2020-12-03)
 - Fix CRT related param error
-- Remove PyOpenSSL dependency 
+- Remove PyOpenSSL dependency
+- Remove old OpenSSL version dependency with pure SEED implementation.
+  - If SEED algorithm is not supported by local OpenSSL, use python version of SEED algorithm automatically.
 
 ### Ver. 0.4.3 (2020-02-26)
 - Fix seed_generator to generate bytes 
