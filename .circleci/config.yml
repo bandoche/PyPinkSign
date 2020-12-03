@@ -9,8 +9,8 @@ jobs:
     steps:
       - checkout
       - run:
-          - command: pip install .
-          - name: python/install-deps
+          command: pip install .
+          name: python/install-deps
       - run:
           command: pip install -U flake8 codecov
           name: Install tools
