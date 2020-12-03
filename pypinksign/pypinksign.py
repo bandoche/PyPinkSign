@@ -26,8 +26,6 @@ from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
 
-from .pypinkseed import process_block
-
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
 ID_PBES2 = (1, 2, 840, 113549, 1, 5, 13)
@@ -517,6 +515,7 @@ def byte_xor(ba1, ba2):
 
 def seed_cbc_128_encrypt_pure(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
+    from . import process_block
     padder = padding.PKCS7(128).padder()
     padded_text = padder.update(plaintext) + padder.finalize()
 
@@ -545,6 +544,7 @@ def seed_cbc_128_decrypt_openssl(key: bytes, ciphertext: bytes, iv: bytes = b'01
 
 def seed_cbc_128_decrypt_pure(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
+    from . import process_block
     n = 16
     chunks = [ciphertext[i:i + n] for i in range(0, len(ciphertext), n)]
     vector = iv

@@ -14,7 +14,10 @@ jobs:
           command: pip install -U flake8 codecov
           name: Install tools
       - run:
-          command: coverage run pypinksign/test_pinkSign.py
+          command: pushd /tmp && python -c 'import pypinksign' && popd
+          name: Import test
+      - run:
+          command: coverage run -m pypinksign.test_pinkSign
           name: Test
       - run:
           command: codecov

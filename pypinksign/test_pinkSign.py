@@ -7,10 +7,9 @@ from unittest import TestCase
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers
 from pyasn1.codec.der import decoder as der_decoder
 
-from pypinksign import PinkSign, seed_cbc_128_encrypt, seed_cbc_128_decrypt, seed_generator, separate_p12_into_npki, \
+from . import PinkSign, seed_cbc_128_encrypt, seed_cbc_128_decrypt, seed_generator, separate_p12_into_npki, \
     encrypt_decrypted_prikey, inject_rand_in_plain_prikey, seed_cbc_128_decrypt_pure, seed_cbc_128_encrypt_pure, \
-    seed_cbc_128_encrypt_openssl, seed_cbc_128_decrypt_openssl
-from pypinkseed import set_key, process_block
+    seed_cbc_128_encrypt_openssl, seed_cbc_128_decrypt_openssl, set_key, process_block
 
 # Test certificate data
 

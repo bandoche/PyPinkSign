@@ -1,5 +1,5 @@
 """
-PyPinkSign - A simple package for managing certifications in Korean (NPKI)
+PyPinkSign - A package for managing certifications in Korea (NPKI)
 """
 
 from .pypinksign import (
