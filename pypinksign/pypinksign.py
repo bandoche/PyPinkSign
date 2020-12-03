@@ -26,7 +26,7 @@ from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
 
-from pypinkseed import process_block
+from .pypinkseed import process_block
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
