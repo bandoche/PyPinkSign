@@ -1,11 +1,14 @@
 version: 2.1
 
 orbs:
-  python: circleci/python@0.2.1
+  python3.9: circleci/python:3.9@1.2.1
+  python3.8: circleci/python:3.8@1.2.1
+  python3.7: circleci/python:3.7@1.2.1
+  python3.6: circleci/python:3.6@1.2.1
 
 jobs:
-  build-and-test:
-    executor: python/default
+  build-and-test-3.9: &template
+    executor: python3.9
     steps:
       - checkout
       - run:
@@ -17,7 +20,15 @@ jobs:
       - run:
           command: coverage run pypinksign/test_pinkSign.py
           name: Test
-
+  build-and-test-3.8:
+    <<: *template
+    executor: python3.8
+  build-and-test-3.7:
+    <<: *template
+    executor: python3.7
+  build-and-test-3.6:
+    <<: *template
+    executor: python3.6
 workflows:
   main:
     jobs:
