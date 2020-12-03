@@ -236,10 +236,19 @@ TEST_CERT = {
                     b'Jz\x18\x1a>'
 }
 TEST_DATA = {
-    'plaintext': b'TEST_MSG',
+    'plaintext': b'TEST_MSG_IS_QUITE_LONG_ENOUGH!',
     'iv': b'0123456789abcdef',
     'key': b'abcdefghijklmnop',
-    'seedCiphertext': b'\xcb*\x82{\xd9\x81=\xba\x84\x91\xd3\xa2B\xac\xa09',
+    'seedCiphertext': b'\xce\x9bx=\xe4\xdd\x93\xbfR\xad\xbb>Y\xa7C[I\xd7\x1eEp4`\xfb\xdce^,\\\xa3_\xec',
+    'seed_key': bytearray(b"|\x8f\x8c~\xc77\xa2,\xff'l\xdb\xa7\xcahJ/\x9d\x01\xa1p\x04\x9eA"
+                          b'\xaeY\xb3\xc4BE\xe9\x0c\xa1\xd6@\x0f\xdb\xc19N\x85\x965\x08'
+                          b'\x0c_\x1f\xcb\xb6\x84\xbd\xa7a\xa4\xae\xae\xd1~\x07A\xfe\xe9\n\xa1'
+                          b'v\xcc\x05\xd5\xe9zs\x94P\xaco\x92\x1b&f\xe5e\xb7\x90J'
+                          b'\x8e\xc3\xa7\xb3/~."\xa2\xb1!\xb9M\x0b\xfd\xe4N\x88\x8d\x9b'
+                          b'c\x1c\x8d\xdcCx\xa6\xc4!j\xf6_xx\xc01q\x89\x11P\x98\xb2U\xb0'),
+    'seed_block_plain': bytes.fromhex('00 01 22 03 04 05 06 07 08 09 0A CB 0C 0D 0E 0F'.replace(' ', '')),
+    'seed_block_cipher': b'\x00\xfa\x15\xed*\x89\xcb\x0c\xe28&\xe5\\3A\xcc',
+    'seed_block_key': bytes.fromhex('01 02 02 01 03 05 05 03 09 08 08 09 11 33 33 11'.replace(' ', '')),
 }
 
 
