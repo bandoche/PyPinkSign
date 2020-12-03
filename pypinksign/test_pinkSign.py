@@ -1,3 +1,4 @@
+# coding=utf-8
 import base64
 import datetime
 import unittest
@@ -7,7 +8,9 @@ from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAP
 from pyasn1.codec.der import decoder as der_decoder
 
 from pypinksign import PinkSign, seed_cbc_128_encrypt, seed_cbc_128_decrypt, seed_generator, separate_p12_into_npki, \
-    encrypt_decrypted_prikey, inject_rand_in_plain_prikey
+    encrypt_decrypted_prikey, inject_rand_in_plain_prikey, seed_cbc_128_decrypt_pure, seed_cbc_128_encrypt_pure, \
+    seed_cbc_128_encrypt_openssl, seed_cbc_128_decrypt_openssl
+from pypinkseed import set_key, process_block
 
 # Test certificate data
 
@@ -148,8 +151,8 @@ TEST_CERT = {
     'p': 170401043831697500886160249453602583335155029958192979892846760308792096042785207717320177143506192175989057818875274069078126428428664188191002040247312453076759639094986555140352677217431824482125801965793292922161731900555514681105243113154959058263263456989915155467472762129413377977445986545324277543809,
     'q': 95599236003507988162256917245689855045632483977786697851995594997401446652676983578811144407419929034577038823467981696549011583201801033558606302793999799945569038528599429915741121712483113541005448714575076774872507683991561353700970060867945659335299477867471142542568350398654542405553691414296004321539,
     'd': 8668458576799383822303075505902773303702791948520350447591705551968573412481366563991501557832946913857781852545203931408291912759607358926597597865008104587006174130294158594958410416515122546200879458580594885456386724866866739193311653907014726549131751934320924441082267328378503540617025669966701183522206919710449881328235253220883492065780702278929839911087532908363820393717661474109958999654386682492736918207066351293501839778273759891568844178991557314782743427392173790999061264519292907633369044977763132786126117625410260941849282676595630566162691980887645244419763077955294840876726431237055938516481,
-    'dmp1': 65537,
-    'dmq1': 65537,
+    'dmp1': 78212823283050681663130544025723168733765635536756382320776407172265667349177134036417722029598696413414206452074204178890384379717757105832942191016973707997039942377836803106290322770001170518132142895357249254490548198736750799126093932996846413958790119317540287038116608291726563970574678750475297813377,
+    'dmq1': 45746488858294002117224456135344607535988530601452135913093883679654344392855987945970921765736856957953072532199816500381060351569215591397705910583679871310755613123814131278324569602288522876534963106913483722733367616425215612759450723696227227709756731699677472287066634677391475111472440246635289859587,
     'iqmp': 112243375560447953437465068186677931961946386104381573565781248145631941626834895758173236022282569436875755478253924009132537455132096217156676030889058324791773265762456745881170246853470533950609848943359263192558068577390682467473304759782525131932828121083302204086500535048470761777373171230451769787025,
     'testMsg': b'TEST_MSG',
     'sign': b'A\x81\xb9$\xf2\xc8\xa9\xfd\x8e\x0c\xfd\xc4Z\xb1k;|\xc6\xf8\xd5\xa5uQv'
@@ -236,10 +239,19 @@ TEST_CERT = {
                     b'Jz\x18\x1a>'
 }
 TEST_DATA = {
-    'plaintext': b'TEST_MSG',
+    'plaintext': b'TEST_MSG_IS_QUITE_LONG_ENOUGH!',
     'iv': b'0123456789abcdef',
     'key': b'abcdefghijklmnop',
-    'seedCiphertext': b'\xcb*\x82{\xd9\x81=\xba\x84\x91\xd3\xa2B\xac\xa09',
+    'seedCiphertext': b'\xce\x9bx=\xe4\xdd\x93\xbfR\xad\xbb>Y\xa7C[I\xd7\x1eEp4`\xfb\xdce^,\\\xa3_\xec',
+    'seed_key': bytearray(b"|\x8f\x8c~\xc77\xa2,\xff'l\xdb\xa7\xcahJ/\x9d\x01\xa1p\x04\x9eA"
+                          b'\xaeY\xb3\xc4BE\xe9\x0c\xa1\xd6@\x0f\xdb\xc19N\x85\x965\x08'
+                          b'\x0c_\x1f\xcb\xb6\x84\xbd\xa7a\xa4\xae\xae\xd1~\x07A\xfe\xe9\n\xa1'
+                          b'v\xcc\x05\xd5\xe9zs\x94P\xaco\x92\x1b&f\xe5e\xb7\x90J'
+                          b'\x8e\xc3\xa7\xb3/~."\xa2\xb1!\xb9M\x0b\xfd\xe4N\x88\x8d\x9b'
+                          b'c\x1c\x8d\xdcCx\xa6\xc4!j\xf6_xx\xc01q\x89\x11P\x98\xb2U\xb0'),
+    'seed_block_plain': bytes.fromhex('00 01 22 03 04 05 06 07 08 09 0A CB 0C 0D 0E 0F'.replace(' ', '')),
+    'seed_block_cipher': b'\x00\xfa\x15\xed*\x89\xcb\x0c\xe28&\xe5\\3A\xcc',
+    'seed_block_key': bytes.fromhex('01 02 02 01 03 05 05 03 09 08 08 09 11 33 33 11'.replace(' ', '')),
 }
 
 
@@ -375,9 +387,41 @@ class TestPinkSign(TestCase):
         expected = TEST_DATA['seedCiphertext']
         self.assertEqual(expected, seed_cbc_128_encrypt(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv']))
 
+    def test_seed_cbc_128_encrypt_openssl(self):
+        expected = TEST_DATA['seedCiphertext']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_openssl(
+                             TEST_DATA['key'],
+                             TEST_DATA['plaintext'],
+                             TEST_DATA['iv']))
+
+    def test_seed_cbc_128_encrypt_pure(self):
+        expected = TEST_DATA['seedCiphertext']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_pure(
+                             TEST_DATA['key'],
+                             TEST_DATA['plaintext'],
+                             TEST_DATA['iv']))
+
     def test_seed_cbc_128_decrypt(self):
         expected = TEST_DATA['plaintext']
         self.assertEqual(expected, seed_cbc_128_decrypt(TEST_DATA['key'], TEST_DATA['seedCiphertext'], TEST_DATA['iv']))
+
+    def test_seed_cbc_128_decrypt_openssl(self):
+        expected = TEST_DATA['plaintext']
+        self.assertEqual(expected,
+                         seed_cbc_128_decrypt_openssl(
+                             TEST_DATA['key'],
+                             TEST_DATA['seedCiphertext'],
+                             TEST_DATA['iv']))
+
+    def test_seed_cbc_128_decrypt_pure(self):
+        expected = TEST_DATA['plaintext']
+        self.assertEqual(expected,
+                         seed_cbc_128_decrypt_pure(
+                             TEST_DATA['key'],
+                             TEST_DATA['seedCiphertext'],
+                             TEST_DATA['iv']))
 
     def test_seed_generator(self):
         self.assertEqual(16, len(seed_generator(16)))
@@ -393,7 +437,40 @@ class TestPinkSign(TestCase):
 
     def test_encrypt_decrypted_prikey(self):
         expected = TEST_CERT['signPri']
-        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'], TEST_CERT['signPriSalt']))
+        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'],
+                                                            TEST_CERT['signPriSalt']))
+
+    def test_set_key(self):
+        expected = TEST_DATA['seed_key']
+        self.assertEqual(expected, set_key(bytes(16)), expected)
+
+    def test_process_block(self):
+        expected = bytearray(TEST_DATA['seed_block_cipher'])
+        self.assertEqual(expected, process_block(True, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_plain']),
+                         expected)
+
+        expected = bytearray(TEST_DATA['seed_block_plain'])
+        self.assertEqual(expected, process_block(False, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_cipher']),
+                         expected)
+
+    def test_process_block_openssl(self):
+        expected = TEST_DATA['seed_block_cipher']
+        self.assertEqual(expected,
+                         seed_cbc_128_encrypt_openssl(
+                             TEST_DATA['seed_block_key'],
+                             TEST_DATA['seed_block_plain'],
+                             bytes(16))[:16], expected)
+
+    def test_pure_vs_openssl(self):
+        for i in range(100):
+            random_bytes = seed_generator(128)
+            key = seed_generator(16)
+            iv = seed_generator(16)
+            enc = seed_cbc_128_encrypt_pure(key, random_bytes, iv)
+            self.assertEqual(enc, seed_cbc_128_encrypt_openssl(key, random_bytes, iv))
+            dec = seed_cbc_128_decrypt_pure(key, enc, iv)
+            self.assertEqual(dec, seed_cbc_128_decrypt_openssl(key, enc, iv))
+            self.assertEqual(dec, random_bytes)
 
 
 if __name__ == '__main__':

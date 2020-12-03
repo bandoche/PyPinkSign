@@ -9,22 +9,24 @@ from hashlib import sha1
 from os.path import expanduser
 from sys import platform as _platform
 
-from OpenSSL import crypto
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import padding, hashes
+from cryptography.hazmat.primitives import padding, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1, RSAPublicKey, RSAPrivateKey
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.serialization import pkcs12
 from pyasn1.codec.der import decoder as der_decoder
 from pyasn1.codec.der import encoder as der_encoder
 from pyasn1.codec.der.encoder import encode
 from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
+
+from pypinkseed import process_block
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
@@ -39,7 +41,8 @@ class PinkSign:
     """Main class for PinkSign"""
 
     def __init__(self, pubkey_path: str = None, pubkey_data: bytes = None, prikey_path: str = None,
-                 prikey_data: bytes = None, prikey_password: bytes = None, p12_path: str = None, p12_data: bytes = None):
+                 prikey_data: bytes = None, prikey_password: bytes = None, p12_path: str = None,
+                 p12_data: bytes = None):
         """
         Initialize
         :param pubkey_path: path for public key file (e.g "/some/path/signCert.der")
@@ -173,8 +176,8 @@ class PinkSign:
         (n, e, d, p, q) = (der_pri2[0][1], der_pri2[0][2], der_pri2[0][3], der_pri2[0][4], der_pri2[0][5])
         (n, e, d, p, q) = (int(n), int(e), int(d), int(p), int(q))
         iqmp = rsa_crt_iqmp(p, q)
-        dmp1 = rsa_crt_dmp1(e, p)
-        dmq1 = rsa_crt_dmq1(e, q)
+        dmp1 = rsa_crt_dmp1(d, p)
+        dmq1 = rsa_crt_dmq1(d, q)
         pn = RSAPublicNumbers(n=n, e=e)
 
         self.prikey = RSAPrivateNumbers(p=p, q=q, d=d, dmp1=dmp1, dmq1=dmq1, iqmp=iqmp,
@@ -330,9 +333,21 @@ class PinkSign:
 
         data = Sequence()
         data = data.setComponentByPosition(0, Integer(1))
-        data = data.setComponentByPosition(1, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, oi_sha256).setComponentByPosition(1, Null(''))))
-        data = data.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_data).setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, OctetString(hexValue=msg.hex()))))
-        data = data.setComponentByPosition(3, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
+        data = data.setComponentByPosition(
+            1, Set().setComponentByPosition(
+                0, Sequence().setComponentByPosition(
+                    0, oi_sha256).setComponentByPosition(
+                    1, Null(''))))
+        data = data.setComponentByPosition(
+            2, Sequence().setComponentByPosition(0, oi_pkcs7_data).
+                setComponentByPosition(
+                1,
+                Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext,
+                                                       tag.tagFormatSimple,
+                                                       0)).
+                    setComponentByPosition(0, OctetString(hexValue=msg.hex()))))
+        data = data.setComponentByPosition(3, Sequence().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, owner_cert_pub))
 
         data4001 = Sequence().setComponentByPosition(0, owner_cert_pub[0][3])
         data4001 = data4001.setComponentByPosition(1, owner_cert_pub[0][1])
@@ -340,35 +355,19 @@ class PinkSign:
         data4003 = Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null(''))
         data4004 = OctetString(hexValue=signed.hex())
 
-        data = data.setComponentByPosition(4, Set().setComponentByPosition(0, Sequence().setComponentByPosition(0, Integer(1)).setComponentByPosition(1, data4001).setComponentByPosition(2, data4002).setComponentByPosition(3, data4003).setComponentByPosition(4, data4004)))
+        data = data.setComponentByPosition(
+            4, Set().setComponentByPosition(
+                0, Sequence().setComponentByPosition(
+                    0, Integer(1)).setComponentByPosition(
+                    1, data4001).setComponentByPosition(
+                    2, data4002).setComponentByPosition(
+                    3, data4003).setComponentByPosition(
+                    4, data4004)))
 
-        der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
+        der = der.setComponentByPosition(1, Sequence().subtype(
+            implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
 
         return der_encoder.encode(der)
-
-    # def pkcs7_enveloped_msg(self, msg, data, iv=b"0123456789012345"):
-    #     """WIP: PKCS#7 envelop msg, data with cert"""
-    #     oi_pkcs7_rsa_enc = ObjectIdentifier((1, 2, 840, 113549, 1, 1, 1))
-    #     oi_pkcs7_data = ObjectIdentifier((1, 2, 840, 113549, 1, 7, 1))
-    #     oi_seed_cbc = ObjectIdentifier(id_seed_cbc)
-    #
-    #     der = Sequence().setComponentByPosition(0, ObjectIdentifier(id_pkcs7_enveloped_data))
-    #
-    #     data_set = Sequence().setComponentByPosition(0, Integer(0))
-    #     data_set = data_set.setComponentByPosition(1, Sequence().setComponentByPosition(0, self.pub_cert[0][3]).setComponentByPosition(1, self.pub_cert[0][1]))
-    #     data_set = data_set.setComponentByPosition(2, Sequence().setComponentByPosition(0, oi_pkcs7_rsa_enc).setComponentByPosition(1, Null('')))
-    #     data_set = data_set.setComponentByPosition(3, OctetString(hexValue=msg.hex()))
-    #
-    #     data_seq = Sequence().setComponentByPosition(0, oi_pkcs7_data)
-    #     data_seq = data_seq.setComponentByPosition(1, Sequence().setComponentByPosition(0, oi_seed_cbc).setComponentByPosition(1, OctetString(hexValue=iv.hex())))
-    #     data_seq = data_seq.setComponentByPosition(2, OctetString(hexValue=data.hex()).subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)))
-    #
-    #     data = Sequence().setComponentByPosition(0, Integer(0))
-    #     data = data.setComponentByPosition(1, Set().setComponentByPosition(0, data_set))
-    #     data = data.setComponentByPosition(2, data_seq)
-    #
-    #     der = der.setComponentByPosition(1, Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext, tag.tagFormatSimple, 0)).setComponentByPosition(0, data))
-    #     return der_encoder.encode(der)
 
     def get_private_key_decryption_key_for_seed_cbc_with_sha1(self, der: Sequence) -> (bytes, bytes):
         """
@@ -486,7 +485,22 @@ def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
     return cert_list[i - 1]
 
 
-def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345'):
+
+def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    try:
+        return seed_cbc_128_encrypt_openssl(key, plaintext, iv)
+    except UnsupportedAlgorithm as e:
+        return seed_cbc_128_encrypt_pure(key, plaintext, iv)
+
+
+def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    try:
+        return seed_cbc_128_decrypt_openssl(key, ciphertext, iv)
+    except UnsupportedAlgorithm as e:
+        return seed_cbc_128_decrypt_pure(key, ciphertext, iv)
+
+
+def seed_cbc_128_encrypt_openssl(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -497,7 +511,28 @@ def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'01234567890
     return encrypted_text
 
 
-def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345'):
+def byte_xor(ba1, ba2):
+    return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
+
+
+def seed_cbc_128_encrypt_pure(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    """General function - encrypt plaintext with seed-cbc-128(key, iv)"""
+    padder = padding.PKCS7(128).padder()
+    padded_text = padder.update(plaintext) + padder.finalize()
+
+    n = 16
+    chunks = [padded_text[i:i + n] for i in range(0, len(padded_text), n)]
+    vector = iv
+    result = b''
+    for ch in chunks:
+        new_ch = byte_xor(ch, vector)
+        result_ba = process_block(True, key, new_ch)
+        vector = result_ba
+        result += result_ba
+    return result
+
+
+def seed_cbc_128_decrypt_openssl(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
     backend = default_backend()
     cipher = Cipher(algorithms.SEED(key), modes.CBC(iv), backend=backend)
@@ -505,6 +540,21 @@ def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789
     decrypted_text = decryptor.update(ciphertext)
     unpadder = padding.PKCS7(128).unpadder()
     unpadded_text = unpadder.update(decrypted_text) + unpadder.finalize()
+    return unpadded_text
+
+
+def seed_cbc_128_decrypt_pure(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
+    """General function - decrypt ciphertext with seed-cbc-128(key, iv)"""
+    n = 16
+    chunks = [ciphertext[i:i + n] for i in range(0, len(ciphertext), n)]
+    vector = iv
+    result = b''
+    for ch in chunks:
+        dec = process_block(False, key, ch)
+        result += byte_xor(dec, vector)
+        vector = ch
+    unpadder = padding.PKCS7(128).unpadder()
+    unpadded_text = unpadder.update(result) + unpadder.finalize()
     return unpadded_text
 
 
@@ -546,15 +596,18 @@ def separate_p12_into_npki(p12_data: bytes, prikey_password: bytes) -> (bytes, b
     :param prikey_password: (bytes) p12 file password
     :return: pubkey_data(bytes), prikey_data(bytes)
     """
-    p12 = crypto.load_pkcs12(p12_data, prikey_password)
-    prikey_data = crypto.dump_privatekey(crypto.FILETYPE_PEM, p12.get_privatekey())
-    prikey_data = prikey_data.replace(b'-----BEGIN PRIVATE KEY-----\n', b'').replace(b'\n-----END PRIVATE KEY-----',
-                                                                                     b'')
+    (private_key, certificate, additional_certificates) = pkcs12.load_key_and_certificates(
+        data=p12_data, password=prikey_password)
+
+    prikey_data = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption())
+
+    prikey_data = b''.join(prikey_data.split(b'\n')[1:-2])
     prikey_data = base64.b64decode(prikey_data)
 
-    pubkey_data = crypto.dump_certificate(crypto.FILETYPE_PEM, p12.get_certificate())
-    pubkey_data = pubkey_data.replace(b'-----BEGIN CERTIFICATE-----\n', b'').replace(b'\n-----END CERTIFICATE-----',
-                                                                                     b'')
+    pubkey_data = b''.join(certificate.public_bytes(serialization.Encoding.PEM).split(b'\n')[1:-2])
     pubkey_data = base64.b64decode(pubkey_data)
     return pubkey_data, prikey_data
 
