@@ -173,14 +173,6 @@ def F(ki0: int, ki1: int, r: int) -> int:
     return ((rd0 << 32) | (rd1 & 0xffffffff)) & 0xffffffffffffffff
 
 
-def logical_ls(n, b):
-    return (n << 1) & ((1 << b) - 1) & 0xffffffffffffffff
-
-
-def logical_rs(n, b):
-    return n >> b if n >= 0 else (n + 0x10000000000000000) >> b
-
-
 def phase_calc1(r0: int, ki0: int, r1: int, ki1: int) -> int:
     return g(g((r0 ^ ki0) ^ (r1 ^ ki1)) + (r0 ^ ki0)) % 0xffffffff
 
