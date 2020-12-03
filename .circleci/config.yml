@@ -8,9 +8,9 @@ jobs:
     executor: python/default
     steps:
       - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
+      - run:
+          - command: pip install .
+          - name: python/install-deps
       - run:
           command: pip install -U flake8 codecov
           name: Install tools
