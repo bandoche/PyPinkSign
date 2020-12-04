@@ -14,6 +14,9 @@ jobs:
           command: pip install -U flake8 codecov
           name: Install tools
       - run:
+          command: flake8 --ignore=E501 --exclude=__init__.py .
+          name: Flake8
+      - run:
           command: pushd /tmp && python -c 'import pypinksign' && popd
           name: Import test
       - run:
