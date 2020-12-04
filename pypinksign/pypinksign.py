@@ -74,7 +74,7 @@ class PinkSign:
         self.prikey_data = prikey_data
         if prikey_password:
             if isinstance(prikey_password, str):
-                logging.warning(f"Please use bytes for passphrase")
+                logging.warning("Please use bytes for passphrase")
                 prikey_password = str.encode(prikey_password)
         self.prikey_password = prikey_password
         self.p12_path = p12_path
@@ -337,8 +337,8 @@ class PinkSign:
                     0, oi_sha256).setComponentByPosition(
                     1, Null(''))))
         data = data.setComponentByPosition(
-            2, Sequence().setComponentByPosition(0, oi_pkcs7_data).
-                setComponentByPosition(
+            2, Sequence().setComponentByPosition(
+                0, oi_pkcs7_data).setComponentByPosition(
                 1,
                 Sequence().subtype(implicitTag=tag.Tag(tag.tagClassContext,
                                                        tag.tagFormatSimple,
@@ -483,18 +483,17 @@ def choose_cert(base_path: str = None, cn: str = None, pw: str = None):
     return cert_list[i - 1]
 
 
-
 def seed_cbc_128_encrypt(key: bytes, plaintext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     try:
         return seed_cbc_128_encrypt_openssl(key, plaintext, iv)
-    except UnsupportedAlgorithm as e:
+    except UnsupportedAlgorithm:
         return seed_cbc_128_encrypt_pure(key, plaintext, iv)
 
 
 def seed_cbc_128_decrypt(key: bytes, ciphertext: bytes, iv: bytes = b'0123456789012345') -> bytes:
     try:
         return seed_cbc_128_decrypt_openssl(key, ciphertext, iv)
-    except UnsupportedAlgorithm as e:
+    except UnsupportedAlgorithm:
         return seed_cbc_128_decrypt_pure(key, ciphertext, iv)
 
 
