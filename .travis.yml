@@ -18,7 +18,7 @@ install:
 script:
   - flake8 --ignore=E501 --exclude=__init__.py .
   - pushd /tmp && python -c 'import pypinksign' && popd
-  - coverage run pypinksign/test_pinkSign.py
+  - coverage run -m pypinksign.test_pinkSign
 
 after_success:
   - codecov # submit coverage
