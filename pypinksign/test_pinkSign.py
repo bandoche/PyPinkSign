@@ -1,6 +1,8 @@
 # coding=utf-8
 import base64
 import datetime
+import os
+import tempfile
 import unittest
 from unittest import TestCase
 
@@ -287,6 +289,22 @@ class TestPinkSign(TestCase):
     def test_load_p12(self):
         cert = PinkSign(p12_data=base64.b64decode(TEST_CERT['pfx']),
                         prikey_password=TEST_CERT['signPw'])
+        expected_public_numbers = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
+        self.assertEqual(cert.pubkey.public_numbers(), expected_public_numbers)
+        expected = RSAPrivateNumbers(p=TEST_CERT['p'], q=TEST_CERT['q'], d=TEST_CERT['d'], dmp1=TEST_CERT['dmp1'],
+                                     dmq1=TEST_CERT['dmq1'], iqmp=TEST_CERT['iqmp'],
+                                     public_numbers=expected_public_numbers)
+        self.assertEqual(expected, cert.prikey.private_numbers())
+
+    def test_load_12_file(self):
+        f = tempfile.NamedTemporaryFile(delete=False)
+        f.write(base64.b64decode(TEST_CERT['pfx']))
+        f.close()
+        cert = PinkSign(p12_path=f.name, prikey_password=TEST_CERT['signPw'])
+        signed = cert.sign(msg=b'1')
+        cert.verify(signature=signed, msg = b'1')
+        # cert.load_prikey()
+        os.unlink(f.name)
         expected_public_numbers = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
         self.assertEqual(cert.pubkey.public_numbers(), expected_public_numbers)
         expected = RSAPrivateNumbers(p=TEST_CERT['p'], q=TEST_CERT['q'], d=TEST_CERT['d'], dmp1=TEST_CERT['dmp1'],
