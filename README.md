@@ -44,7 +44,6 @@ import pypinksign
 # choose_cert function automatically fetch path for certificates
 # and load certificate which match DN and passpharase for Private Key
 p = pypinksign.PinkSign(p12_path="홍길순.pfx", prikey_password=b"i-am-h0ng")
-p.load_prikey()
 sign = p.sign(b'1') 
 verify = p.verify(sign, b'1')  # True
 envelop = p.pkcs7_enveloped_msg(b'message')  # Envelop with K-PKI - Temporary removed
