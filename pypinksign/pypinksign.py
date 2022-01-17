@@ -188,7 +188,8 @@ class PinkSign:
     def load_p12(self, p12_data: bytes = None) -> None:
         """Load key information from P12(PKCS12, Usually pfx)"""
         if p12_data is None:
-            p12_data = open(self.p12_path, 'rb').read()
+            with open(self.p12_path, 'rb') as f:
+                p12_data = f.read()
 
         pubkey_data, prikey_data = separate_p12_into_npki(p12_data, self.prikey_password)
         self.load_pubkey(pubkey_data=pubkey_data)
