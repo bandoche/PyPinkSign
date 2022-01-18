@@ -69,6 +69,10 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.5.0 (2022-01-18)
+- Upgrade dependency (`cryptography==36.0.1`)
+- Fix file handle leakage
+
 ### Ver. 0.4.5 (2020-12-03)
 - Fix import path issue (thanks to [Gyong1211](https://github.com/Gyong1211))
 

@@ -5,7 +5,7 @@ from setuptools import setup
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.4.5'
+VERSION = '0.5.0'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
@@ -28,9 +28,9 @@ setup(
     zip_safe=False,
     install_requires=[
         'pyasn1==0.4.8',
-        'cryptography==3.3.2',
+        'cryptography==36.0.1',
     ],
-    keywords='npki 공인인증서 korean pki certificate',
+    keywords='npki 공인인증서 공동인증서 korean pki certificate',
     platforms='OS Independent',
     classifiers=[
         'Development Status :: 4 - Beta',
