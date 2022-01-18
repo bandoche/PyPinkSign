@@ -2,9 +2,9 @@ version: 2.1
 
 
 jobs:
-  build-and-test-39: &template
+  build-and-test-310: &template
     docker:
-      - image: circleci/python:3.9
+      - image: circleci/python:3.10
     steps:
       - checkout
       - run:
@@ -25,6 +25,10 @@ jobs:
       - run:
           command: codecov
           name: Send coverage
+  build-and-test-39:
+    <<: *template
+    docker:
+      - image: circleci/python:3.9
   build-and-test-38:
     <<: *template
     docker:
@@ -40,6 +44,7 @@ jobs:
 workflows:
   main:
     jobs:
+      - build-and-test-310
       - build-and-test-39
       - build-and-test-38
       - build-and-test-37
