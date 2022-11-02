@@ -69,6 +69,9 @@ The current development version can be found at
 
 ## History
 
+### Ver. 0.5.1 (2022-11-02)
+- Update dependency (`cryptography==38.0.3`) which resolves CVE-2022-3602 and CVE-2022-3786
+
 ### Ver. 0.5.0 (2022-01-18)
 - Upgrade dependency (`cryptography==36.0.1`)
 - Fix file handle leakage
