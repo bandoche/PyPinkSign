@@ -8,7 +8,7 @@ jobs:
     steps:
       - checkout
       - run:
-          command: pip install .
+          command: pip install --upgrade pip && pip install .
           name: python/install-deps
       - run:
           command: pip install -U flake8 codecov
@@ -48,6 +48,7 @@ jobs:
 workflows:
   main:
     jobs:
+      - build-and-test-311
       - build-and-test-310
       - build-and-test-39
       - build-and-test-38
