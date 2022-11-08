@@ -4,7 +4,7 @@ version: 2.1
 jobs:
   build-and-test-310: &template
     docker:
-      - image: circleci/python:3.10
+      - image: cimg/python:3.10
     steps:
       - checkout
       - run:
@@ -25,22 +25,26 @@ jobs:
       - run:
           command: codecov
           name: Send coverage
+  build-and-test-311:
+    <<: *template
+    docker:
+      - image: cimg/python:3.11
   build-and-test-39:
     <<: *template
     docker:
-      - image: circleci/python:3.9
+      - image: cimg/python:3.9
   build-and-test-38:
     <<: *template
     docker:
-      - image: circleci/python:3.8
+      - image: cimg/python:3.8
   build-and-test-37:
     <<: *template
     docker:
-      - image: circleci/python:3.7
+      - image: cimg/python:3.7
   build-and-test-36:
     <<: *template
     docker:
-      - image: circleci/python:3.6
+      - image: cimg/python:3.6
 workflows:
   main:
     jobs:
