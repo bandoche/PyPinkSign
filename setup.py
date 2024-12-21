@@ -5,7 +5,7 @@ from setuptools import setup
 
 
 PROJECT = 'pypinksign'
-VERSION = '0.5.1'
+VERSION = '0.5.2'
 URL = 'http://github.com/bandoche/PyPinkSign'
 AUTHOR = 'Sangjun Jung'
 AUTHOR_EMAIL = 'spamcoffee+pypinksign@gmail.com'
