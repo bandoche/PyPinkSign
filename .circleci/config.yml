@@ -41,16 +41,21 @@ jobs:
     <<: *template
     docker:
       - image: cimg/python:3.7
-  build-and-test-36:
+  build-and-test-312:
     <<: *template
     docker:
-      - image: cimg/python:3.6
+      - image: cimg/python:3.12
+  build-and-test-313:
+    <<: *template
+    docker:
+      - image: cimg/python:3.13
 workflows:
   main:
     jobs:
+      - build-and-test-313
+      - build-and-test-312
       - build-and-test-311
       - build-and-test-310
       - build-and-test-39
       - build-and-test-38
       - build-and-test-37
-      - build-and-test-36
