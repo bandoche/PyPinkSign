@@ -256,11 +256,11 @@ class PinkSign:
         """Get valid date range
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
-        print p.valid_date()  # datetime.datetime(2019, 6, 11, 14, 59, 59), datetime.datetime(2018, 6, 5, 7, 22)
+        print p.valid_date()  # datetime.datetime(2019, 6, 11, 14, 59, 59, tzinfo=datetime.timezone.utc), datetime.datetime(2018, 6, 5, 7, 22, tzinfo=datetime.timezone.utc)
         """
         if self.pub_cert is None:
             raise ValueError("Public key should be loaded before fetching valid date.")
-        return self.pub_cert.not_valid_before, self.pub_cert.not_valid_after
+        return self.pub_cert.not_valid_before_utc, self.pub_cert.not_valid_after_utc
 
     def serialnum(self) -> int:
         """Get serial number value
