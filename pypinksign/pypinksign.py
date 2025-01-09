@@ -9,14 +9,14 @@ from hashlib import sha1
 from os.path import expanduser
 from sys import platform as _platform
 
-from cryptography import x509
+from cryptography import x509, __version__ as cryptography_version
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding, hashes, serialization
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers, rsa_crt_iqmp, \
     rsa_crt_dmp1, rsa_crt_dmq1, RSAPublicKey, RSAPrivateKey
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.serialization import pkcs12
 from pyasn1.codec.der import decoder as der_decoder
@@ -25,6 +25,12 @@ from pyasn1.codec.der.encoder import encode
 from pyasn1.type import tag
 from pyasn1.type.namedtype import NamedTypes, NamedType
 from pyasn1.type.univ import Sequence, Integer, OctetString, ObjectIdentifier, Set, BitString, Null
+
+if cryptography_version >= '43.0.0':
+    from cryptography.hazmat.decrepit.ciphers import algorithms
+else:
+    from cryptography.hazmat.primitives.ciphers import algorithms
+
 
 ID_SEED_CBC = (1, 2, 410, 200004, 1, 4)
 ID_SEED_CBC_WITH_SHA1 = (1, 2, 410, 200004, 1, 15)
