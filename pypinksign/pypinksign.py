@@ -7,6 +7,7 @@ from datetime import datetime
 from hashlib import sha1
 from os.path import expanduser
 from sys import platform as _platform
+from typing import Optional, Callable, Dict
 
 from cryptography import x509, __version__ as cryptography_version
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
@@ -85,9 +86,9 @@ class PinkSign:
         self.p12_path = p12_path
         self.p12_data = p12_data
         self.pub_cert = None
-        self.prikey: RSAPrivateKey = None
-        self.pub_data: bytes = None
-        self.pubkey: RSAPublicKey = None
+        self.prikey: Optional[RSAPrivateKey] = None
+        self.pub_data: Optional[bytes] = None
+        self.pubkey: Optional[RSAPublicKey] = None
         self.rand_num = None
         if p12_path is not None:
             self.load_p12()
@@ -155,7 +156,7 @@ class PinkSign:
         # check if correct K-PKI prikey file
         algorithm_type = der[0][0].asTuple()
 
-        private_key_decryption_key_functions = {
+        private_key_decryption_key_functions: Dict[tuple, Callable] = {
             ID_SEED_CBC_WITH_SHA1: self.get_private_key_decryption_key_for_seed_cbc_with_sha1,
             ID_SEED_CBC: self.get_private_key_decryption_key_for_seed_cbc,
             ID_PBES2: self.get_private_key_decryption_key_for_pbes2,
@@ -214,7 +215,7 @@ class PinkSign:
                 return dn.rfc4514_string()[3:]
         return ''
 
-    def issuer(self) -> str:
+    def issuer(self) -> Optional[str]:
         """Get issuer value
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -225,8 +226,9 @@ class PinkSign:
         for dn in self.pub_cert.issuer.rdns:
             if dn.rfc4514_string().startswith('O='):
                 return dn.rfc4514_string()[2:]
+        return None
 
-    def cert_class(self) -> str:
+    def cert_class(self) -> Optional[str]:
         """Get cert class
 
         p = PinkSign(pubkey_path="/some/path/signCert.der")
@@ -237,8 +239,9 @@ class PinkSign:
         for dn in self.pub_cert.issuer.rdns:
             if dn.rfc4514_string().startswith('CN='):
                 return dn.rfc4514_string()[3:]
+        return None
 
-    def cert_type_oid(self) -> str:
+    def cert_type_oid(self) -> Optional[str]:
         """Get cert type
         TODO: bad way to find value following oid. exception may occurred with certain certificate
 
@@ -250,6 +253,7 @@ class PinkSign:
         for ext in self.pub_cert.extensions:
             if ext.oid.dotted_string == '2.5.29.32':  #
                 return ext.value[0].policy_identifier.dotted_string
+        return None
 
     def valid_date(self) -> (datetime, datetime):
         """Get valid date range
@@ -296,8 +300,6 @@ class PinkSign:
             return True
         except InvalidSignature:
             return False
-        except Exception as e:
-            raise e
 
     def decrypt(self, msg, padding_=PKCS1v15()):
         """Decrypt with private key - also used when signing.
