@@ -51,7 +51,7 @@ envelop = p.pkcs7_enveloped_msg(b'message')  # Envelop with K-PKI - Temporary re
 
 
 ## Requirement & Dependency
-- Python 3.7 or above
+- Python 3.8 or above
 - [PyASN1](http://pyasn1.sourceforge.net) for pyasn1
 - [cryptography](https://cryptography.io/en/latest/) for cryptography.hazmat
 - OpenSSL 1.1.1 or above due to cryptography package
@@ -72,6 +72,7 @@ The current development version can be found at
 ### v0.5.3 (2025-02-22)
 - Update dependency (`cryptography==44.0.1`) to resolves multiple vulnerabilities.
 - Update cryptography deprecations (move SEED algo, use not_valid_before/after_utc) (thanks to [kerokim](https://github.com/kerokim))
+- Drop Python 3.7 support 
 
 ### v0.5.2 (2024-12-21)
 - Update dependency (`cryptography==42.0.8`) to resolves multiple vulnerabilities.
