@@ -2,7 +2,7 @@
 Python code for PKI certificate. 공인인증서(공동인증서)를 다루는 파이썬 코드입니다.
 
 ## Status
-[![Build](https://github.com/bandoche/PyPinkSign/actions/workflows/python-package.yml/badge.svg)](https://circleci.com/gh/bandoche/PyPinkSign) [![codecov](https://codecov.io/gh/bandoche/PyPinkSign/branch/master/graph/badge.svg)](https://codecov.io/gh/bandoche/PyPinkSign)
+[![Build](https://github.com/bandoche/PyPinkSign/actions/workflows/python-package.yml/badge.svg)](https://circleci.com/gh/bandoche/PyPinkSign) [![codecov](https://codecov.io/gh/bandoche/PyPinkSign/branch/master/graph/badge.svg)](https://codecov.io/gh/bandoche/PyPinkSign) [![](https://dcbadge.limes.pink/api/server/https://discord.gg/9HGAzAzBg3?style=plastic)](https://discord.gg/9HGAzAzBg3)
 
 ## Support method
 - Load personal purpose of PKI a.k.a "NPKI" or "[공동인증서 (formerly 공인인증서)](http://www.rootca.or.kr/kor/accredited/accredited03_05.jsp)"
