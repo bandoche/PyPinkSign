@@ -1,9 +1,12 @@
 import base64
 import datetime
 import os
+import struct
 import tempfile
 import unittest
-from unittest import TestCase
+from unittest import TestCase, mock
+
+from cryptography.exceptions import UnsupportedAlgorithm
 
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers, RSAPrivateNumbers
 from pyasn1.codec.der import decoder as der_decoder
@@ -254,6 +257,11 @@ TEST_DATA = {
     'seed_block_key': bytes.fromhex('01 02 02 01 03 05 05 03 09 08 08 09 11 33 33 11'.replace(' ', '')),
 }
 
+CERT_PUBKEY_DER = base64.b64decode(TEST_CERT['signCert'])
+CERT_PRIKEY_DER = base64.b64decode(TEST_CERT['signPri'])
+CERT_P12_DATA = base64.b64decode(TEST_CERT['pfx'])
+CERT_PASSWORD = TEST_CERT['signPw']
+
 
 class TestPinkSign(TestCase):
     def setUp(self) -> None:
@@ -261,23 +269,24 @@ class TestPinkSign(TestCase):
         Load test certificate
         :return: None
         """
-        self.c = PinkSign(pubkey_data=base64.b64decode(TEST_CERT['signCert']),
-                          prikey_data=base64.b64decode(TEST_CERT['signPri']),
-                          prikey_password=TEST_CERT['signPw']
-                          )
-        pass
+        self.c = PinkSign(
+            pubkey_data=CERT_PUBKEY_DER,
+            prikey_data=CERT_PRIKEY_DER,
+            prikey_password=CERT_PASSWORD,
+        )
 
     def test_load_pubkey(self):
         cert = PinkSign()
-        cert.load_pubkey(pubkey_data=base64.b64decode(TEST_CERT['signCert']))
+        cert.load_pubkey(pubkey_data=CERT_PUBKEY_DER)
         expected = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
         self.assertEqual(expected, cert.pubkey.public_numbers())
 
     def test_load_prikey(self):
-        cert = PinkSign(pubkey_data=base64.b64decode(TEST_CERT['signCert']),
-                        prikey_data=base64.b64decode(TEST_CERT['signPri']),
-                        prikey_password=TEST_CERT['signPw']
-                        )
+        cert = PinkSign(
+            pubkey_data=CERT_PUBKEY_DER,
+            prikey_data=CERT_PRIKEY_DER,
+            prikey_password=CERT_PASSWORD,
+        )
         cert.load_prikey()
         expected_public_numbers = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
         expected = RSAPrivateNumbers(p=TEST_CERT['p'], q=TEST_CERT['q'], d=TEST_CERT['d'], dmp1=TEST_CERT['dmp1'],
@@ -286,8 +295,7 @@ class TestPinkSign(TestCase):
         self.assertEqual(expected, cert.prikey.private_numbers())
 
     def test_load_p12(self):
-        cert = PinkSign(p12_data=base64.b64decode(TEST_CERT['pfx']),
-                        prikey_password=TEST_CERT['signPw'])
+        cert = PinkSign(p12_data=CERT_P12_DATA, prikey_password=CERT_PASSWORD)
         expected_public_numbers = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
         self.assertEqual(cert.pubkey.public_numbers(), expected_public_numbers)
         expected = RSAPrivateNumbers(p=TEST_CERT['p'], q=TEST_CERT['q'], d=TEST_CERT['d'], dmp1=TEST_CERT['dmp1'],
@@ -296,13 +304,13 @@ class TestPinkSign(TestCase):
         self.assertEqual(expected, cert.prikey.private_numbers())
 
     def test_load_12_file(self):
-        f = tempfile.NamedTemporaryFile(delete=False)
-        f.write(base64.b64decode(TEST_CERT['pfx']))
-        f.close()
-        cert = PinkSign(p12_path=f.name, prikey_password=TEST_CERT['signPw'])
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(CERT_P12_DATA)
+            temp_path = f.name
+        self.addCleanup(lambda: os.path.exists(temp_path) and os.unlink(temp_path))
+        cert = PinkSign(p12_path=temp_path, prikey_password=CERT_PASSWORD)
         signed = cert.sign(msg=b'1')
         cert.verify(signature=signed, msg=b'1')
-        os.unlink(f.name)
         expected_public_numbers = RSAPublicNumbers(e=65537, n=TEST_CERT['n'])
         self.assertEqual(cert.pubkey.public_numbers(), expected_public_numbers)
         expected = RSAPrivateNumbers(p=TEST_CERT['p'], q=TEST_CERT['q'], d=TEST_CERT['d'], dmp1=TEST_CERT['dmp1'],
@@ -441,10 +449,12 @@ class TestPinkSign(TestCase):
     def test_seed_generator(self):
         self.assertEqual(16, len(seed_generator(16)))
         self.assertIsInstance(seed_generator(16), bytes)
+        self.assertTrue(all(b != 0 for b in seed_generator(64)))
+        self.assertEqual(b'', seed_generator(0))
 
     def test_separate_p12_into_npki(self):
         expected = tuple((base64.b64decode(TEST_CERT['signCert']), base64.b64decode(TEST_CERT['plainSignPri'])))
-        self.assertEqual(expected, separate_p12_into_npki(base64.b64decode(TEST_CERT['pfx']), TEST_CERT['signPw']))
+        self.assertEqual(expected, separate_p12_into_npki(CERT_P12_DATA, CERT_PASSWORD))
 
     def test_inject_rand_in_plain_prikey(self):
         expected = TEST_CERT['plainSignPriFullB64']
@@ -452,29 +462,36 @@ class TestPinkSign(TestCase):
 
     def test_encrypt_decrypted_prikey(self):
         expected = TEST_CERT['signPri']
-        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], TEST_CERT['signPw'],
+        self.assertEqual(expected, encrypt_decrypted_prikey(TEST_CERT['plainSignPriFullB64'], CERT_PASSWORD,
                                                             TEST_CERT['signPriSalt']))
 
     def test_set_key(self):
         expected = TEST_DATA['seed_key']
-        self.assertEqual(expected, set_key(bytes(16)), expected)
+        self.assertEqual(expected, set_key(bytes(16)))
 
     def test_process_block(self):
-        expected = bytearray(TEST_DATA['seed_block_cipher'])
-        self.assertEqual(expected, process_block(True, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_plain']),
-                         expected)
+        expected_cipher = bytearray(TEST_DATA['seed_block_cipher'])
+        self.assertEqual(
+            expected_cipher,
+            process_block(True, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_plain']),
+        )
 
-        expected = bytearray(TEST_DATA['seed_block_plain'])
-        self.assertEqual(expected, process_block(False, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_cipher']),
-                         expected)
+        expected_plain = bytearray(TEST_DATA['seed_block_plain'])
+        self.assertEqual(
+            expected_plain,
+            process_block(False, TEST_DATA['seed_block_key'], TEST_DATA['seed_block_cipher']),
+        )
 
     def test_process_block_openssl(self):
         expected = TEST_DATA['seed_block_cipher']
-        self.assertEqual(expected,
-                         seed_cbc_128_encrypt_openssl(
-                             TEST_DATA['seed_block_key'],
-                             TEST_DATA['seed_block_plain'],
-                             bytes(16))[:16], expected)
+        self.assertEqual(
+            expected,
+            seed_cbc_128_encrypt_openssl(
+                TEST_DATA['seed_block_key'],
+                TEST_DATA['seed_block_plain'],
+                bytes(16),
+            )[:16],
+        )
 
     def test_pure_vs_openssl(self):
         for i in range(100):
@@ -486,6 +503,91 @@ class TestPinkSign(TestCase):
             dec = seed_cbc_128_decrypt_pure(key, enc, iv)
             self.assertEqual(dec, seed_cbc_128_decrypt_openssl(key, enc, iv))
             self.assertEqual(dec, random_bytes)
+
+
+class TestPinkSignValidation(TestCase):
+    def test_load_pubkey_requires_source(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.load_pubkey()
+
+    def test_load_prikey_requires_pubkey(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.load_prikey(prikey_path='dummy', prikey_password=CERT_PASSWORD)
+
+    def test_load_prikey_requires_password(self):
+        cert = PinkSign(pubkey_data=CERT_PUBKEY_DER, prikey_data=CERT_PRIKEY_DER)
+        with self.assertRaises(ValueError):
+            cert.load_prikey()
+
+    def test_cert_type_oid_requires_pubkey(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.cert_type_oid()
+
+    def test_valid_date_requires_pubkey(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.valid_date()
+
+    def test_serialnum_requires_pubkey(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.serialnum()
+
+    def test_sign_requires_private_key(self):
+        cert = PinkSign(pubkey_data=CERT_PUBKEY_DER)
+        with self.assertRaises(ValueError):
+            cert.sign(b'data')
+
+    def test_decrypt_requires_private_key(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.decrypt(b'data')
+
+    def test_verify_requires_public_key(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.verify(b'sig', b'msg')
+
+    def test_encrypt_requires_public_key(self):
+        cert = PinkSign()
+        with self.assertRaises(ValueError):
+            cert.encrypt(b'msg')
+
+
+class TestSeedInternals(TestCase):
+    def test_process_block_requires_key(self):
+        with self.assertRaises(ValueError):
+            process_block(True, None, TEST_DATA['seed_block_plain'])
+
+    def test_process_block_requires_block_size(self):
+        with self.assertRaises(ValueError):
+            process_block(True, TEST_DATA['seed_block_key'], b'\x00')
+
+    def test_set_key_requires_full_block(self):
+        with self.assertRaises(struct.error):
+            set_key(b'\x00' * 15)
+
+
+class TestSeedFallbacks(TestCase):
+    def test_seed_encrypt_falls_back_to_pure(self):
+        expected = seed_cbc_128_encrypt_pure(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv'])
+        with mock.patch('pypinksign.pypinksign.seed_cbc_128_encrypt_openssl', side_effect=UnsupportedAlgorithm("seed")):
+            self.assertEqual(
+                expected,
+                seed_cbc_128_encrypt(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv']),
+            )
+
+    def test_seed_decrypt_falls_back_to_pure(self):
+        ciphertext = seed_cbc_128_encrypt_pure(TEST_DATA['key'], TEST_DATA['plaintext'], TEST_DATA['iv'])
+        expected = seed_cbc_128_decrypt_pure(TEST_DATA['key'], ciphertext, TEST_DATA['iv'])
+        with mock.patch('pypinksign.pypinksign.seed_cbc_128_decrypt_openssl', side_effect=UnsupportedAlgorithm("seed")):
+            self.assertEqual(
+                expected,
+                seed_cbc_128_decrypt(TEST_DATA['key'], ciphertext, TEST_DATA['iv']),
+            )
 
 
 if __name__ == '__main__':
