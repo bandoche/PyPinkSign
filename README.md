@@ -69,36 +69,41 @@ The current development version can be found at
 
 ## Changelog
 
+### v0.5.4 (2025-10-17)
+- Update dependency (cryptography>=46.0.3) to include latest security patches and compatibility updates.
+- Require OpenSSL 3.0.0 or newer.
+- Add Python 3.14 support.
+
 ### v0.5.3 (2025-02-22)
 - Update dependency (`cryptography==44.0.1`) to resolves multiple vulnerabilities.
 - Update dependency (`pyasn1==0.6.1`) to support recent python versions.
-- Update cryptography deprecations (move SEED algo, use not_valid_before/after_utc) (thanks to [kerokim](https://github.com/kerokim))
-- Drop Python 3.7 support 
+- Update cryptography deprecations. (move SEED algo, use not_valid_before/after_utc) (thanks to [kerokim](https://github.com/kerokim))
+- Drop Python 3.7 support.
 
 ### v0.5.2 (2024-12-21)
 - Update dependency (`cryptography==42.0.8`) to resolves multiple vulnerabilities.
 
 ### v0.5.1 (2022-11-02)
-- Update dependency (`cryptography==38.0.3`) which resolves CVE-2022-3602 and CVE-2022-3786
+- Update dependency (`cryptography==38.0.3`) which resolves CVE-2022-3602 and CVE-2022-3786.
 
 ### v0.5.0 (2022-01-18)
-- Upgrade dependency (`cryptography==36.0.1`)
-- Fix file handle leakage
+- Upgrade dependency. (`cryptography==36.0.1`)
+- Fix file handle leakage.
 
 ### v0.4.5 (2020-12-03)
-- Fix import path issue (thanks to [Gyong1211](https://github.com/Gyong1211))
+- Fix import path issue. (thanks to [Gyong1211](https://github.com/Gyong1211))
 
 ### v0.4.4 (2020-12-03)
-- Fix CRT related param error
-- Remove PyOpenSSL dependency
+- Fix CRT related param error.
+- Remove PyOpenSSL dependency.
 - Remove old OpenSSL version dependency with pure SEED implementation.
   - If SEED algorithm is not supported by local OpenSSL, use python version of SEED algorithm automatically.
 
 ### v0.4.3 (2020-02-26)
-- Fix seed_generator to generate bytes 
+- Fix seed_generator to generate bytes. 
 
 ### v0.4.2 (2020-02-26)
-- Test code fix
+- Test code fix.
 
 ### v0.4.1 (2020-02-26)
 - Add PKCS7 sign message.
@@ -110,9 +115,9 @@ The current development version can be found at
 - Add test code.
 - Add PBKDF2 for support PBES2 private key. (by [yongminz])
 - Add function to inject `r` (rand num) value to private key. 
-- Update `pyasn1` to `0.4.8`
-- Update `cryptography` to `2.8`
-- Update `pyOpenSSL` to `19.1.0`
+- Update `pyasn1` to `0.4.8`.
+- Update `cryptography` to `2.8`.
+- Update `pyOpenSSL` to `19.1.0`.
 - Temporary remove enveloping function.
 
 ### v0.3 (2017-03-14)
