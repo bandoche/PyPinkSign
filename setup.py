@@ -27,7 +27,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'pyasn1==0.6.2',
+        'pyasn1==0.6.3',
         'cryptography>=46.0.3',
     ],
     keywords='npki 공인인증서 공동인증서 korean pki certificate',
